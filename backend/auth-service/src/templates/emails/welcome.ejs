@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to CAB Booking</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #007bff;">🚖 Welcome to CAB Booking!</h1>
+        </div>
+        
+        <p>Hello <strong><%= userName %></strong>,</p>
+        
+        <p>Welcome to CAB Booking System! We're excited to have you on board.</p>
+        
+        <p>With our platform, you can:</p>
+        <ul>
+            <li>Book rides instantly</li>
+            <li>Track your driver in real-time</li>
+            <li>Make secure payments</li>
+            <li>Rate your experience</li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="<%= dashboardLink %>" 
+               style="background-color: #007bff; color: white; padding: 12px 30px; 
+                      text-decoration: none; border-radius: 5px; font-weight: bold;">
+               Go to Dashboard
+            </a>
+        </div>
+        
+        <p>Need help? Our support team is here for you at <a href="mailto:<%= supportEmail %>"><%= supportEmail %></a></p>
+        
+        <p>Happy riding!<br>The CAB Booking Team</p>
+        
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
+            <p>© <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
