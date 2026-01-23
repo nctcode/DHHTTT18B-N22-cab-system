@@ -1,12 +1,13 @@
 const UserProfileModel = require('../models/UserProfile');
+const CustomerModel = require('../models/Customer');
 
 class ProfileService {
-  // Get user profile
+  // Get user profile by userId (through customer)
   static async getUserProfile(userId) {
     try {
-      const profile = await UserProfileModel.getFullProfile(userId);
+      const profile = await UserProfileModel.findProfileByUserId(userId);
       if (!profile) {
-        throw new Error('Profile not found');
+        throw new Error('Profile not found for this user');
       }
       return {
         success: true,
@@ -17,10 +18,31 @@ class ProfileService {
     }
   }
 
-  // Update user profile
+  // Get profile by customerId
+  static async getProfileByCustomerId(customerId) {
+    try {
+      const profile = await UserProfileModel.findProfileByCustomerId(customerId);
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+      return {
+        success: true,
+        data: profile
+      };
+    } catch (error) {
+      throw new Error(`Failed to fetch profile: ${error.message}`);
+    }
+  }
+
+  // Update user profile by userId
   static async updateUserProfile(userId, updateData) {
     try {
-      const profile = await UserProfileModel.updateProfile(userId, updateData);
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+      
+      const profile = await UserProfileModel.updateProfile(customer.id, updateData);
       return {
         success: true,
         message: 'Profile updated successfully',
@@ -31,11 +53,16 @@ class ProfileService {
     }
   }
 
-  // Update notification preferences
+  // Update notification preferences by userId
   static async updateNotificationPreferences(userId, preferences) {
     try {
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
       const profile = await UserProfileModel.updateNotificationPreferences(
-        userId,
+        customer.id,
         preferences
       );
       return {
@@ -50,11 +77,16 @@ class ProfileService {
     }
   }
 
-  // Verify phone number
+  // Verify phone number by userId
   static async verifyPhone(userId) {
     try {
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
       const profile = await UserProfileModel.updatePhoneVerification(
-        userId,
+        customer.id,
         true
       );
       return {
@@ -67,11 +99,16 @@ class ProfileService {
     }
   }
 
-  // Verify email
+  // Verify email by userId
   static async verifyEmail(userId) {
     try {
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
       const profile = await UserProfileModel.updateEmailVerification(
-        userId,
+        customer.id,
         true
       );
       return {
@@ -84,10 +121,15 @@ class ProfileService {
     }
   }
 
-  // Update user last active time
+  // Update user last active time by userId
   static async updateLastActive(userId) {
     try {
-      await UserProfileModel.updateLastActive(userId);
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
+      await UserProfileModel.updateLastActive(customer.id);
       return {
         success: true,
         message: 'Last active updated'
@@ -97,11 +139,16 @@ class ProfileService {
     }
   }
 
-  // Update verification status
+  // Update verification status by userId
   static async updateVerificationStatus(userId, status) {
     try {
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
       const profile = await UserProfileModel.updateVerificationStatus(
-        userId,
+        customer.id,
         status
       );
       return {
@@ -116,7 +163,7 @@ class ProfileService {
     }
   }
 
-  // Get verification details
+  // Get verification details by userId
   static async getVerificationDetails(userId) {
     try {
       const profile = await UserProfileModel.findProfileByUserId(userId);
@@ -138,7 +185,7 @@ class ProfileService {
     }
   }
 
-  // Get user preferences
+  // Get user preferences by userId
   static async getUserPreferences(userId) {
     try {
       const profile = await UserProfileModel.findProfileByUserId(userId);
@@ -158,10 +205,15 @@ class ProfileService {
     }
   }
 
-  // Delete profile
+  // Delete profile by userId
   static async deleteProfile(userId) {
     try {
-      await UserProfileModel.deleteProfile(userId);
+      const customer = await CustomerModel.findCustomerByUserId(userId);
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
+      await UserProfileModel.deleteProfile(customer.id);
       return {
         success: true,
         message: 'Profile deleted successfully'

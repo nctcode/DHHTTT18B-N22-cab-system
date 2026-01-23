@@ -1,11 +1,11 @@
 const prisma = require('../../prisma/client');
 
 class UserProfileModel {
-  // Create user profile
-  static async createProfile(userId, profileData) {
+  // Create user profile (linked to customer)
+  static async createProfile(customerId, profileData) {
     return await prisma.userProfile.create({
       data: {
-        userId,
+        customerId,
         bio: profileData.bio || null,
         profilePicture: profileData.profilePicture || null,
         dateOfBirth: profileData.dateOfBirth || null,
@@ -28,92 +28,109 @@ class UserProfileModel {
           sms: true,
           push: true
         }
-      }
+      },
+      include: { customer: true }
     });
   }
 
-  // Find profile by user ID
-  static async findProfileByUserId(userId) {
+  // Find profile by customer ID
+  static async findProfileByCustomerId(customerId) {
     return await prisma.userProfile.findUnique({
+      where: { customerId },
+      include: { customer: true }
+    });
+  }
+
+  // Find profile by user ID (through customer relationship)
+  static async findProfileByUserId(userId) {
+    const customer = await prisma.customer.findUnique({
       where: { userId }
+    });
+    if (!customer) return null;
+    
+    return await prisma.userProfile.findUnique({
+      where: { customerId: customer.id },
+      include: { customer: true }
     });
   }
 
   // Update user profile
-  static async updateProfile(userId, updateData) {
+  static async updateProfile(customerId, updateData) {
+    const data = {};
+    if (updateData.bio !== undefined) data.bio = updateData.bio;
+    if (updateData.profilePicture !== undefined) data.profilePicture = updateData.profilePicture;
+    if (updateData.dateOfBirth !== undefined) data.dateOfBirth = updateData.dateOfBirth;
+    if (updateData.gender !== undefined) data.gender = updateData.gender;
+    if (updateData.address !== undefined) data.address = updateData.address;
+    if (updateData.city !== undefined) data.city = updateData.city;
+    if (updateData.state !== undefined) data.state = updateData.state;
+    if (updateData.zipCode !== undefined) data.zipCode = updateData.zipCode;
+    if (updateData.country !== undefined) data.country = updateData.country;
+    if (updateData.emergencyContact !== undefined) data.emergencyContact = updateData.emergencyContact;
+    if (updateData.emergencyContactPhone !== undefined) data.emergencyContactPhone = updateData.emergencyContactPhone;
+    if (updateData.preferences !== undefined) data.preferences = updateData.preferences;
+    if (updateData.socialLinks !== undefined) data.socialLinks = updateData.socialLinks;
+
     return await prisma.userProfile.update({
-      where: { userId },
-      data: {
-        bio: updateData.bio,
-        profilePicture: updateData.profilePicture,
-        dateOfBirth: updateData.dateOfBirth,
-        gender: updateData.gender,
-        address: updateData.address,
-        city: updateData.city,
-        state: updateData.state,
-        zipCode: updateData.zipCode,
-        country: updateData.country,
-        emergencyContact: updateData.emergencyContact,
-        emergencyContactPhone: updateData.emergencyContactPhone,
-        preferences: updateData.preferences,
-        socialLinks: updateData.socialLinks
-      }
+      where: { customerId },
+      data,
+      include: { customer: true }
     });
   }
 
   // Update verification status
-  static async updateVerificationStatus(userId, status) {
+  static async updateVerificationStatus(customerId, status) {
     return await prisma.userProfile.update({
-      where: { userId },
+      where: { customerId },
       data: { verificationStatus: status }
     });
   }
 
   // Update phone verification status
-  static async updatePhoneVerification(userId, isVerified) {
+  static async updatePhoneVerification(customerId, isVerified) {
     return await prisma.userProfile.update({
-      where: { userId },
+      where: { customerId },
       data: { isPhoneVerified: isVerified }
     });
   }
 
   // Update email verification status
-  static async updateEmailVerification(userId, isVerified) {
+  static async updateEmailVerification(customerId, isVerified) {
     return await prisma.userProfile.update({
-      where: { userId },
+      where: { customerId },
       data: { isEmailVerified: isVerified }
     });
   }
 
   // Update last active timestamp
-  static async updateLastActive(userId) {
+  static async updateLastActive(customerId) {
     return await prisma.userProfile.update({
-      where: { userId },
+      where: { customerId },
       data: { lastActiveAt: new Date() }
     });
   }
 
   // Update notification preferences
-  static async updateNotificationPreferences(userId, preferences) {
+  static async updateNotificationPreferences(customerId, preferences) {
     return await prisma.userProfile.update({
-      where: { userId },
+      where: { customerId },
       data: { notificationPreferences: preferences }
     });
   }
 
-  // Get user profile with user data
-  static async getFullProfile(userId) {
+  // Get user profile with customer data
+  static async getFullProfile(customerId) {
     return await prisma.userProfile.findUnique({
-      where: { userId },
+      where: { customerId },
       include: {
-        user: {
+        customer: {
           select: {
             id: true,
-            email: true,
-            phone: true,
-            firstName: true,
-            lastName: true,
-            role: true,
+            userId: true,
+            phoneNumber: true,
+            rideCount: true,
+            totalSpent: true,
+            averageRating: true,
             isVerified: true,
             isActive: true
           }
@@ -123,9 +140,9 @@ class UserProfileModel {
   }
 
   // Delete profile
-  static async deleteProfile(userId) {
+  static async deleteProfile(customerId) {
     return await prisma.userProfile.delete({
-      where: { userId }
+      where: { customerId }
     });
   }
 }
