@@ -82,6 +82,24 @@ class CustomerController {
     }
   }
 
+  // Helper function to convert date string to DateTime
+  static convertToDateTime(dateString) {
+    if (!dateString) return null;
+    
+    if (dateString instanceof Date) {
+      return dateString;
+    }
+    
+    if (typeof dateString === 'string') {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+    
+    return null;
+  }
+
   // Update customer profile
   static async updateCustomerProfile(req, res) {
     try {
@@ -91,7 +109,18 @@ class CustomerController {
       }
 
       const { customerId } = req.params;
-      const updateData = req.body;
+      let updateData = req.body;
+
+      // Convert dateOfBirth to DateTime if provided
+      if (updateData.dateOfBirth) {
+        updateData.dateOfBirth = CustomerController.convertToDateTime(updateData.dateOfBirth);
+        if (!updateData.dateOfBirth) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid dateOfBirth format. Use YYYY-MM-DD or ISO-8601 format.'
+          });
+        }
+      }
 
       const result = await CustomerService.updateCustomerProfile(
         customerId,

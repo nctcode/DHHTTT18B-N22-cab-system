@@ -19,6 +19,26 @@ class ProfileController {
     }
   }
 
+  // Helper function to convert date string to DateTime
+  static convertToDateTime(dateString) {
+    if (!dateString) return null;
+    
+    // If already a valid DateTime, return as-is
+    if (dateString instanceof Date) {
+      return dateString;
+    }
+    
+    // If it's a date string like "1990-05-15", convert to DateTime
+    if (typeof dateString === 'string') {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+    
+    return null;
+  }
+
   // Update user profile
   static async updateUserProfile(req, res) {
     try {
@@ -28,7 +48,18 @@ class ProfileController {
       }
 
       const { userId } = req.params;
-      const updateData = req.body;
+      let updateData = req.body;
+
+      // Convert dateOfBirth to DateTime if provided
+      if (updateData.dateOfBirth) {
+        updateData.dateOfBirth = ProfileController.convertToDateTime(updateData.dateOfBirth);
+        if (!updateData.dateOfBirth) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid dateOfBirth format. Use YYYY-MM-DD or ISO-8601 format.'
+          });
+        }
+      }
 
       const result = await ProfileService.updateUserProfile(
         userId,

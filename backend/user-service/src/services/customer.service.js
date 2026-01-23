@@ -1,17 +1,38 @@
 const CustomerModel = require('../models/Customer');
+const UserProfileModel = require('../models/UserProfile');
 
 class CustomerService {
-  // Register new customer
-  static async registerCustomer(customerId, customerData) {
+  // Register new customer and auto-create user profile
+  static async registerCustomer(userId, customerData) {
     try {
+      // Create customer
       const customer = await CustomerModel.createCustomer(
-        customerId,
+        userId,
         customerData
       );
+      
+      // Auto-create user profile for this customer
+      const userProfile = await UserProfileModel.createProfile(customer.id, {
+        bio: customerData.bio || null,
+        profilePicture: customerData.profilePicture || null,
+        dateOfBirth: customerData.dateOfBirth || null,
+        gender: customerData.gender || null,
+        address: customerData.address || null,
+        city: customerData.city || null,
+        state: customerData.state || null,
+        zipCode: customerData.zipCode || null,
+        country: customerData.country || null,
+        emergencyContact: customerData.emergencyContact || null,
+        emergencyContactPhone: customerData.emergencyContactPhone || null
+      });
+
       return {
         success: true,
-        message: 'Customer profile created successfully',
-        data: customer
+        message: 'Customer profile and user profile created successfully',
+        data: {
+          customer,
+          userProfile
+        }
       };
     } catch (error) {
       throw new Error(`Failed to register customer: ${error.message}`);
