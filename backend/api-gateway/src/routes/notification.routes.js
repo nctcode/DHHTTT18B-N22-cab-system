@@ -17,9 +17,9 @@ const notificationProxy = createProxyMiddleware({
   },
   onProxyReq: (proxyReq, req, res) => {
     // Forward user info to notification service
-    if (req.user) {
-      proxyReq.setHeader('X-User-Id', req.user.id);
-      proxyReq.setHeader('X-User-Role', req.user.role);
+    if (req.user && req.user.id) {
+      proxyReq.setHeader('X-User-Id', String(req.user.id));
+      proxyReq.setHeader('X-User-Role', String(req.user.role || 'guest'));
     }
     console.log(`[Notification Service] ${req.method} ${req.path} -> ${services.notification.url}${req.path}`);
   },

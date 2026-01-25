@@ -3,6 +3,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger.config');
 const config = require('./config/app.config');
 const services = require('./config/services.config');
 const routes = require('./routes');
@@ -17,8 +19,17 @@ const app = express();
 // Trust proxy
 app.set('trust proxy', 1);
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Allow Swagger UI
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
 
 // CORS
 app.use(cors(config.cors));
@@ -46,6 +57,25 @@ app.use((req, res, next) => {
   next();
 });
 
+// Swagger Documentation
+app.use('/swagger', swaggerUi.serve);
+app.get('/swagger', swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Cab Booking API Documentation',
+}));
+
+// Redirect /swagger/index.html to /swagger for compatibility
+app.get('/swagger/index.html', (req, res) => {
+  res.redirect('/swagger');
+});
+
+// Swagger JSON endpoint
+app.get('/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Rate limiting
 app.use(generalLimiter);
 
@@ -55,6 +85,7 @@ app.get('/', (req, res) => {
     success: true,
     message: 'Welcome to Cab System API Gateway',
     version: '1.0.0',
+    documentation: `http://localhost:${config.port}/swagger`,
     timestamp: new Date().toISOString(),
   });
 });

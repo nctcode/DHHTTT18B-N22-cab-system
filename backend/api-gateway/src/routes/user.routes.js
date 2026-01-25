@@ -17,9 +17,9 @@ const userProxy = createProxyMiddleware({
   },
   onProxyReq: (proxyReq, req, res) => {
     // Forward user info to user service
-    if (req.user) {
-      proxyReq.setHeader('X-User-Id', req.user.id);
-      proxyReq.setHeader('X-User-Role', req.user.role);
+    if (req.user && req.user.id) {
+      proxyReq.setHeader('X-User-Id', String(req.user.id));
+      proxyReq.setHeader('X-User-Role', String(req.user.role || 'guest'));
     }
     console.log(`[User Service] ${req.method} ${req.path} -> ${services.user.url}${req.path}`);
   },

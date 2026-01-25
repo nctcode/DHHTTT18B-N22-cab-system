@@ -17,9 +17,9 @@ const reviewProxy = createProxyMiddleware({
   },
   onProxyReq: (proxyReq, req, res) => {
     // Forward user info to review service
-    if (req.user) {
-      proxyReq.setHeader('X-User-Id', req.user.id);
-      proxyReq.setHeader('X-User-Role', req.user.role);
+    if (req.user && req.user.id) {
+      proxyReq.setHeader('X-User-Id', String(req.user.id));
+      proxyReq.setHeader('X-User-Role', String(req.user.role || 'guest'));
     }
     console.log(`[Review Service] ${req.method} ${req.path} -> ${services.review.url}${req.path}`);
   },
