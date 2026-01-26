@@ -1,0 +1,115 @@
+{
+  "info": {
+    "name": "Review Service API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3008/api/health"
+      }
+    },
+    {
+      "name": "Create Review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rideId\": \"ride-123\",\n  \"rating\": 5,\n  \"comment\": \"Excellent driver!\",\n  \"type\": \"USER_TO_DRIVER\"\n}"
+        },
+        "url": "http://localhost:3008/api/reviews"
+      }
+    },
+    {
+      "name": "Get Review by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "url": "http://localhost:3008/api/reviews/{{review_id}}"
+      }
+    },
+    {
+      "name": "Get Reviews by Driver",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "url": "http://localhost:3008/api/reviews/driver/driver-123?page=1&limit=10"
+      }
+    },
+    {
+      "name": "Get Reviews by User",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "url": "http://localhost:3008/api/reviews/user/user-123?page=1&limit=10"
+      }
+    },
+    {
+      "name": "Update Review",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated review\"\n}"
+        },
+        "url": "http://localhost:3008/api/reviews/{{review_id}}"
+      }
+    },
+    {
+      "name": "Delete Review",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsInJvbGUiOiJVU0VSIiwiaWF0IjoxNzA1MzIwMDAwfQ.test-token"
+          }
+        ],
+        "url": "http://localhost:3008/api/reviews/{{review_id}}"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "review_id",
+      "value": "1234567890"
+    }
+  ]
+}

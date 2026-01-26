@@ -1,0 +1,35 @@
+### Health Check
+GET http://localhost:3006/health
+Accept: application/json
+
+### Create Review
+POST http://localhost:3006/api/reviews
+Content-Type: application/json
+
+{
+  "rideId": "11111111-1111-1111-1111-111111111111",
+  "userId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "driverId": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+  "rating": 5,
+  "comment": "Excellent driver! Very professional and safe driving."
+}
+
+### Get Review by ID
+GET http://localhost:3006/api/reviews/{{reviewId}}
+Accept: application/json
+
+### Get Reviews by Driver
+GET http://localhost:3006/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd?page=1&limit=10
+Accept: application/json
+
+### Get Reviews by User
+GET http://localhost:3006/api/reviews/user/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?page=1&limit=10
+Accept: application/json
+
+### Get Driver Average Rating
+GET http://localhost:3006/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd/average
+Accept: application/json
+
+### Delete Review (Admin)
+DELETE http://localhost:3006/api/reviews/{{reviewId}}
+Accept: application/json
