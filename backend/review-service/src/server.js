@@ -7,14 +7,14 @@ const PORT = process.env.PORT || 3006;
 
 async function startServer() {
   try {
-    // Connect to database
+    // Connect to MongoDB Atlas
     await connectDB();
-    logger.info("✅ Database connected successfully");
+    logger.info("✅ MongoDB Atlas connected successfully");
 
     // Start server
     app.listen(PORT, () => {
       logger.info(`🚀 Review Service running on port ${PORT}`);
-      logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
+      logger.info(`📊 Database: MongoDB Atlas`);
       logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
     });
   } catch (error) {

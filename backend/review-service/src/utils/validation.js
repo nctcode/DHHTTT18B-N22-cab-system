@@ -1,16 +1,16 @@
 const Joi = require("joi");
 
 const reviewSchema = Joi.object({
-  rideId: Joi.string().uuid().required().messages({
-    "string.guid": "Ride ID must be a valid UUID",
+  rideId: Joi.string().required().messages({
+    "string.empty": "Ride ID is required",
     "any.required": "Ride ID is required",
   }),
-  userId: Joi.string().uuid().required().messages({
-    "string.guid": "User ID must be a valid UUID",
+  userId: Joi.string().required().messages({
+    "string.empty": "User ID is required",
     "any.required": "User ID is required",
   }),
-  driverId: Joi.string().uuid().required().messages({
-    "string.guid": "Driver ID must be a valid UUID",
+  driverId: Joi.string().required().messages({
+    "string.empty": "Driver ID is required",
     "any.required": "Driver ID is required",
   }),
   rating: Joi.number().integer().min(1).max(5).required().messages({
@@ -26,7 +26,23 @@ const reviewSchema = Joi.object({
 });
 
 function validateReview(data) {
-  return reviewSchema.validate(data, { abortEarly: false });
+  return reviewSchema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+  });
 }
 
-module.exports = { validateReview };
+// Validation for query parameters
+const paginationSchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+});
+
+function validatePagination(data) {
+  return paginationSchema.validate(data, { abortEarly: false });
+}
+
+module.exports = {
+  validateReview,
+  validatePagination,
+};

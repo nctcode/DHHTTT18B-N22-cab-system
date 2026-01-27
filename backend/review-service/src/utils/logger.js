@@ -1,24 +1,29 @@
 const winston = require("winston");
+const { format } = winston;
 
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "production" ? "info" : "debug",
-  format: winston.format.combine(
-    winston.format.timestamp({
+  format: format.combine(
+    format.timestamp({
       format: "YYYY-MM-DD HH:mm:ss",
     }),
-    winston.format.errors({ stack: true }),
-    winston.format.splat(),
-    winston.format.json(),
+    format.errors({ stack: true }),
+    format.splat(),
+    format.json(),
   ),
-  defaultMeta: { service: "review-service" },
+  defaultMeta: {
+    service: "review-service",
+    database: "mongodb-atlas",
+  },
   transports: [
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          return `${timestamp} [${level}]: ${message} ${
-            Object.keys(meta).length ? JSON.stringify(meta) : ""
-          }`;
+      format: format.combine(
+        format.colorize(),
+        format.printf(({ timestamp, level, message, ...meta }) => {
+          const metaString = Object.keys(meta).length
+            ? JSON.stringify(meta)
+            : "";
+          return `${timestamp} [${level}]: ${message} ${metaString}`;
         }),
       ),
     }),
@@ -31,5 +36,8 @@ const logger = winston.createLogger({
     }),
   ],
 });
+
+// Log MongoDB Atlas connection events
+logger.info("Review Service initialized with MongoDB Atlas");
 
 module.exports = logger;

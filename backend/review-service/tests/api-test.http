@@ -1,9 +1,12 @@
+@baseUrl = http://localhost:3006
+@reviewId = {{createReview.response.body.data.id}}
+
 ### Health Check
-GET http://localhost:3006/health
-Accept: application/json
+GET {{baseUrl}}/health
 
 ### Create Review
-POST http://localhost:3006/api/reviews
+# @name createReview
+POST {{baseUrl}}/api/reviews
 Content-Type: application/json
 
 {
@@ -15,21 +18,19 @@ Content-Type: application/json
 }
 
 ### Get Review by ID
-GET http://localhost:3006/api/reviews/{{reviewId}}
-Accept: application/json
+GET {{baseUrl}}/api/reviews/{{reviewId}}
 
 ### Get Reviews by Driver
-GET http://localhost:3006/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd?page=1&limit=10
-Accept: application/json
+GET {{baseUrl}}/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd?page=1&limit=10
 
 ### Get Reviews by User
-GET http://localhost:3006/api/reviews/user/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?page=1&limit=10
-Accept: application/json
+GET {{baseUrl}}/api/reviews/user/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?page=1&limit=10
 
 ### Get Driver Average Rating
-GET http://localhost:3006/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd/average
-Accept: application/json
+GET {{baseUrl}}/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd/average
+
+### Check if User Reviewed Ride
+GET {{baseUrl}}/api/reviews/check?rideId=11111111-1111-1111-1111-111111111111&userId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
 ### Delete Review (Admin)
-DELETE http://localhost:3006/api/reviews/{{reviewId}}
-Accept: application/json
+DELETE {{baseUrl}}/api/reviews/{{reviewId}}

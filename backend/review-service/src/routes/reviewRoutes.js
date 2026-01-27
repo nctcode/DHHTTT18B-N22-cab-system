@@ -1,11 +1,7 @@
 const express = require("express");
 const reviewController = require("../controllers/reviewController");
-// const authMiddleware = require('../middlewares/auth'); // Uncomment for production
 
 const router = express.Router();
-
-// Apply authentication middleware to all routes in production
-// router.use(authMiddleware.authenticate);
 
 /**
  * @swagger
@@ -34,24 +30,26 @@ const router = express.Router();
  *             properties:
  *               rideId:
  *                 type: string
- *                 format: uuid
+ *                 example: "11111111-1111-1111-1111-111111111111"
  *               userId:
  *                 type: string
- *                 format: uuid
+ *                 example: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
  *               driverId:
  *                 type: string
- *                 format: uuid
+ *                 example: "dddddddd-dddd-dddd-dddd-dddddddddddd"
  *               rating:
  *                 type: integer
  *                 minimum: 1
  *                 maximum: 5
+ *                 example: 5
  *               comment:
  *                 type: string
+ *                 example: "Excellent service!"
  *     responses:
  *       201:
  *         description: Review created successfully
  *       400:
- *         description: Validation error
+ *         description: Validation error or duplicate review
  */
 router.post("/", reviewController.createReview);
 
@@ -67,7 +65,7 @@ router.post("/", reviewController.createReview);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *         example: "abc123"
  *     responses:
  *       200:
  *         description: Review details
@@ -88,7 +86,7 @@ router.get("/:id", reviewController.getReview);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *         example: "dddddddd-dddd-dddd-dddd-dddddddddddd"
  *       - in: query
  *         name: page
  *         schema:
@@ -117,7 +115,7 @@ router.get("/driver/:driverId", reviewController.getDriverReviews);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *         example: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
  *       - in: query
  *         name: page
  *         schema:
@@ -146,7 +144,7 @@ router.get("/user/:userId", reviewController.getUserReviews);
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
+ *         example: "dddddddd-dddd-dddd-dddd-dddddddddddd"
  *     responses:
  *       200:
  *         description: Driver average rating and total reviews
@@ -155,6 +153,29 @@ router.get(
   "/driver/:driverId/average",
   reviewController.getDriverAverageRating,
 );
+
+/**
+ * @swagger
+ * /api/reviews/check:
+ *   get:
+ *     summary: Check if user has reviewed a ride
+ *     tags: [Reviews]
+ *     parameters:
+ *       - in: query
+ *         name: rideId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Check result
+ */
+router.get("/check", reviewController.checkUserReview);
 
 /**
  * @swagger
@@ -168,7 +189,6 @@ router.get(
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
  *     responses:
  *       200:
  *         description: Review deleted successfully

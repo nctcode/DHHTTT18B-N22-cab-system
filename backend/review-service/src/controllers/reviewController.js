@@ -3,7 +3,9 @@ const { validateReview } = require("../utils/validation");
 const logger = require("../utils/logger");
 
 class ReviewController {
-  // POST /api/reviews
+  /**
+   * Create a new review
+   */
   async createReview(req, res, next) {
     try {
       // Validate request body
@@ -24,12 +26,20 @@ class ReviewController {
         data: review,
       });
     } catch (error) {
+      if (error.message === "A review already exists for this ride") {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
       logger.error("Create review error:", error);
       next(error);
     }
   }
 
-  // GET /api/reviews/:id
+  /**
+   * Get review by ID
+   */
   async getReview(req, res, next) {
     try {
       const { id } = req.params;
@@ -40,17 +50,25 @@ class ReviewController {
         data: review,
       });
     } catch (error) {
+      if (error.message === "Review not found") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
       logger.error(`Get review ${req.params.id} error:`, error);
       next(error);
     }
   }
 
-  // GET /api/reviews/driver/:driverId
+  /**
+   * Get reviews by driver ID
+   */
   async getDriverReviews(req, res, next) {
     try {
       const { driverId } = req.params;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
       const result = await reviewService.getReviewsByDriver(
         driverId,
@@ -68,12 +86,14 @@ class ReviewController {
     }
   }
 
-  // GET /api/reviews/user/:userId
+  /**
+   * Get reviews by user ID
+   */
   async getUserReviews(req, res, next) {
     try {
       const { userId } = req.params;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
 
       const result = await reviewService.getReviewsByUser(userId, page, limit);
 
@@ -87,7 +107,9 @@ class ReviewController {
     }
   }
 
-  // GET /api/reviews/driver/:driverId/average
+  /**
+   * Get driver average rating
+   */
   async getDriverAverageRating(req, res, next) {
     try {
       const { driverId } = req.params;
@@ -103,10 +125,11 @@ class ReviewController {
     }
   }
 
-  // DELETE /api/reviews/:id
+  /**
+   * Delete review
+   */
   async deleteReview(req, res, next) {
     try {
-      // Note: Add admin authentication middleware in production
       const { id } = req.params;
       const result = await reviewService.deleteReview(id);
 
@@ -115,7 +138,42 @@ class ReviewController {
         message: result.message,
       });
     } catch (error) {
+      if (error.message === "Review not found") {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
       logger.error(`Delete review ${req.params.id} error:`, error);
+      next(error);
+    }
+  }
+
+  /**
+   * Check if user has reviewed a ride
+   */
+  async checkUserReview(req, res, next) {
+    try {
+      const { rideId, userId } = req.query;
+
+      if (!rideId || !userId) {
+        return res.status(400).json({
+          success: false,
+          message: "rideId and userId are required",
+        });
+      }
+
+      const hasReviewed = await reviewService.hasUserReviewedRide(
+        rideId,
+        userId,
+      );
+
+      res.status(200).json({
+        success: true,
+        data: { hasReviewed },
+      });
+    } catch (error) {
+      logger.error("Check user review error:", error);
       next(error);
     }
   }

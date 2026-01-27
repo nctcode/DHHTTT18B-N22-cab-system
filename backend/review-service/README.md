@@ -1,36 +1,30 @@
 # Review Service - CAB Booking System
 
-Microservice for managing reviews and ratings in the CAB Booking System.
+Microservice for managing reviews and ratings with MongoDB Atlas.
 
 ## Features
 
-- Create reviews for rides
-- Get reviews by driver/user
-- Calculate driver average ratings
-- PostgreSQL database
-- Docker support
-- Comprehensive API documentation
-- Test coverage
+- ✅ Create reviews for rides
+- ✅ Get reviews by driver/user
+- ✅ Calculate driver average ratings
+- ✅ MongoDB Atlas integration
+- ✅ Docker support
+- ✅ Comprehensive API documentation
+- ✅ Test coverage
+- ✅ Pagination support
 
 ## Tech Stack
 
 - Node.js + Express
-- PostgreSQL + Sequelize ORM
+- MongoDB Atlas + Mongoose ODM
 - Docker & Docker Compose
 - Winston logging
 - Joi validation
 
-## Prerequisites
+## Environment Variables
 
-- Node.js 18+
-- PostgreSQL 15+
-- Docker (optional)
-
-## Installation
-
-1. Clone the repository
-2. Install dependencies:
+Copy `.env.example` to `.env`:
 
 ```bash
-npm install
+cp .env.example .env
 ```

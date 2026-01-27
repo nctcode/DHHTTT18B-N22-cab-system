@@ -1,67 +1,95 @@
-const { DataTypes } = require("sequelize");
-const { sequelize } = require("../config/database");
+const mongoose = require("mongoose");
 const { v4: uuidv4 } = require("uuid");
 
-const Review = sequelize.define(
-  "Review",
+const reviewSchema = new mongoose.Schema(
   {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: () => uuidv4(),
-      primaryKey: true,
+    _id: {
+      type: String,
+      default: () => uuidv4(),
     },
     rideId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: "ride_id",
+      type: String,
+      required: [true, "Ride ID is required"],
+      unique: true,
+      trim: true,
+      index: true,
     },
     userId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: "user_id",
+      type: String,
+      required: [true, "User ID is required"],
+      trim: true,
+      index: true,
     },
     driverId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      field: "driver_id",
+      type: String,
+      required: [true, "Driver ID is required"],
+      trim: true,
+      index: true,
     },
     rating: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      validate: {
-        min: 1,
-        max: 5,
-      },
+      type: Number,
+      required: [true, "Rating is required"],
+      min: [1, "Rating must be at least 1"],
+      max: [5, "Rating cannot exceed 5"],
+      index: true,
     },
     comment: {
-      type: DataTypes.TEXT,
-      allowNull: true,
+      type: String,
+      maxlength: [500, "Comment cannot exceed 500 characters"],
+      trim: true,
     },
     createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-      field: "created_at",
+      type: Date,
+      default: Date.now,
+      index: true,
     },
   },
   {
-    tableName: "reviews",
     timestamps: false,
-    indexes: [
-      {
-        fields: ["ride_id"],
-        unique: true,
+    versionKey: false,
+    toJSON: {
+      virtuals: false,
+      transform: function (doc, ret) {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
-      {
-        fields: ["user_id"],
+    },
+    toObject: {
+      virtuals: false,
+      transform: function (doc, ret) {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
       },
-      {
-        fields: ["driver_id"],
-      },
-      {
-        fields: ["created_at"],
-      },
-    ],
+    },
   },
 );
 
+// Compound indexes for better query performance
+reviewSchema.index({ driverId: 1, createdAt: -1 });
+reviewSchema.index({ userId: 1, createdAt: -1 });
+reviewSchema.index({ driverId: 1, rating: 1 });
+reviewSchema.index({ createdAt: -1 });
+
+// Pre-save middleware to ensure rideId uniqueness
+reviewSchema.pre("save", async function (next) {
+  if (this.isModified("rideId")) {
+    const existingReview = await mongoose.model("Review").findOne({
+      rideId: this.rideId,
+      _id: { $ne: this._id },
+    });
+
+    if (existingReview) {
+      const error = new Error("A review already exists for this ride");
+      error.status = 400;
+      return next(error);
+    }
+  }
+  next();
+});
+
+const Review = mongoose.model("Review", reviewSchema, "reviews");
 module.exports = Review;
