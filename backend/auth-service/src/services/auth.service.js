@@ -21,6 +21,30 @@ class AuthService {
       }
     }
 
+    // Validate role
+    const validRoles = ['CUSTOMER', 'DRIVER', 'ADMIN'];
+    if (!validRoles.includes(userData.role)) {
+      throw new Error('Invalid role');
+    }
+
+    // Admin registration restriction (only by existing admins)
+    if (userData.role === 'ADMIN') {
+      throw new Error('Admin registration is restricted');
+    }
+
+    // Driver-specific validation
+    if (userData.role === 'DRIVER') {
+      if (!userData.licenseNumber) {
+        throw new Error('License number is required for drivers');
+      }
+      if (!userData.vehicleType) {
+        throw new Error('Vehicle type is required for drivers');
+      }
+      if (!userData.vehicleNumber) {
+        throw new Error('Vehicle number is required for drivers');
+      }
+    }
+
     // Create new user
     const user = await UserModel.createUser(userData);
 
@@ -28,9 +52,9 @@ class AuthService {
     const accessToken = JWTService.generateAccessToken(user);
     const refreshToken = JWTService.generateRefreshToken(user);
 
-    // Store refresh token in database and Redis
+    // Store refresh token
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
     await prisma.refreshToken.create({
       data: {
@@ -177,25 +201,47 @@ class AuthService {
   }
 
   static async requestPasswordReset(email) {
-    const user = await UserModel.findUserByEmail(email);
-    if (!user) {
-      // Don't reveal that user doesn't exist
-      return { message: 'If an account exists, a reset link will be sent' };
-    }
-
-    // Generate reset token
-    const resetToken = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiry
-
-    // Store reset token in Redis
-    await redis.set(`reset:${resetToken}`, user.id, 'EX', 3600);
-
-    // TODO: Send email with reset link
-    // This would integrate with your email service
-
-    return { message: 'Password reset link sent' };
+  const user = await UserModel.findUserByEmail(email);
+  if (!user) {
+    // For security, don't reveal that user doesn't exist
+    return { 
+      success: true, 
+      message: 'If an account exists with this email, you will receive a reset link shortly.' 
+    };
   }
+
+  // Generate reset token
+  const resetToken = uuidv4();
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour expiry
+
+  // Store reset token in Redis
+  await redis.set(`reset:${resetToken}`, user.id, 'EX', 3600);
+
+  try {
+    // Send reset email using EmailService
+    await EmailService.sendPasswordResetEmail(
+      user.email,
+      resetToken,
+      `${user.firstName} ${user.lastName}`
+    );
+    
+    return { 
+      success: true, 
+      message: 'Password reset link has been sent to your email.',
+      // For development only - remove in production
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    };
+  } catch (emailError) {
+    console.error('Email sending failed:', emailError);
+    // Still return success but log the error
+    return { 
+      success: true, 
+      message: 'Reset token generated. Please check your email.',
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    };
+  }
+}
 
   static async resetPassword(token, newPassword) {
     // Verify reset token
@@ -204,14 +250,21 @@ class AuthService {
       throw new Error('Invalid or expired reset token');
     }
 
-    // Update password
+    // Validate password strength
+    if (newPassword.length < 8) {
+      throw new Error('Password must be at least 8 characters long');
+    }
+
+    // Update password - Sửa ở đây
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Sử dụng UserModel thay vì prisma trực tiếp
     await UserModel.updateUser(userId, { password: hashedPassword });
 
     // Delete used token
     await redis.del(`reset:${token}`);
 
-    // Blacklist all user's refresh tokens
+    // Sử dụng prisma đã được import ở đầu file
     const userTokens = await prisma.refreshToken.findMany({
       where: { userId }
     });
@@ -220,7 +273,15 @@ class AuthService {
       await JWTService.blacklistToken(token.token, 7 * 24 * 60 * 60);
     }
 
-    return { message: 'Password reset successfully' };
+    // Also delete from database
+    await prisma.refreshToken.deleteMany({
+      where: { userId }
+    });
+
+    return { 
+      success: true, 
+      message: 'Password has been reset successfully. You can now login with your new password.' 
+    };
   }
 
   static async getUserProfile(userId) {
@@ -256,6 +317,57 @@ class AuthService {
     await UserModel.updateUser(userId, { password: hashedPassword });
 
     return { message: 'Password updated successfully' };
+  }
+  // Thêm phương thức update profile đầy đủ
+  static async updateUserProfile(userId, updateData) {
+    const prisma = require('../../prisma/client');
+    
+    // Validate phone number if provided
+    if (updateData.phone) {
+      if (updateData.phone.length < 10) {
+        throw new Error('Phone number must be at least 10 digits');
+      }
+      
+      // Check if phone is already used by another user
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          phone: updateData.phone,
+          NOT: { id: userId }
+        }
+      });
+      
+      if (existingUser) {
+        throw new Error('Phone number is already registered');
+      }
+    }
+
+    // Remove fields that shouldn't be updated
+    const { email, password, role, isVerified, isActive, ...allowedUpdates } = updateData;
+    
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: allowedUpdates,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isVerified: true,
+        isActive: true,
+        updatedAt: true,
+        // Include driver fields if they exist
+        licenseNumber: true,
+        vehicleType: true,
+        vehicleNumber: true,
+        rating: true,
+        totalTrips: true,
+        isAvailable: true
+      }
+    });
+
+    return updatedUser;
   }
 }
 

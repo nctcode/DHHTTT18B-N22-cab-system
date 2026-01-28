@@ -1,5 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
+const adminRoutes = require('./admin.routes');
 const router = express.Router();
 
 const AuthController = require('../controllers/auth.controller');
@@ -30,13 +31,40 @@ const resetPasswordValidation = [
   body('newPassword').isLength({ min: 8 })
 ];
 
+const updateProfileValidation = [
+  body('firstName').optional().trim().notEmpty().withMessage('First name cannot be empty'),
+  body('lastName').optional().trim().notEmpty().withMessage('Last name cannot be empty'),
+  body('phone').optional().isMobilePhone('any').withMessage('Invalid phone number'),
+  body('licenseNumber').optional().trim(),
+  body('vehicleType').optional().trim(),
+  body('vehicleNumber').optional().trim()
+];
+
+const changePasswordValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+];
+
 // Public routes
 router.post('/register', registerValidation, AuthController.register);
 router.post('/login', loginValidation, AuthController.login);
 router.post('/refresh-token', AuthController.refreshToken);
-router.post('/request-password-reset', passwordResetValidation, AuthController.requestPasswordReset);
+// router.post('/request-password-reset', passwordResetValidation, AuthController.requestPasswordReset);
 router.post('/reset-password', resetPasswordValidation, AuthController.resetPassword);
 router.get('/verify-email', AuthController.verifyEmail);
+
+router.post('/request-password-reset', 
+  [body('email').isEmail().normalizeEmail()],
+  AuthController.requestPasswordReset
+);
+
+router.post('/reset-password', 
+  [
+    body('token').notEmpty().withMessage('Reset token is required'),
+    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+  ],
+  AuthController.resetPassword
+);
 
 // Protected routes (require authentication)
 router.use(authMiddleware.authenticate);
@@ -59,21 +87,17 @@ router.get('/admin/users',
 // Thêm sau các routes hiện có
 router.put('/profile/update', 
   authMiddleware.authenticate,
-  [
-    body('firstName').optional().trim(),
-    body('lastName').optional().trim(),
-    body('phone').optional().isMobilePhone()
-  ],
+  updateProfileValidation,
   UserController.updateProfile
 );
 
 router.post('/change-password',
   authMiddleware.authenticate,
-  [
-    body('currentPassword').notEmpty(),
-    body('newPassword').isLength({ min: 8 })
-  ],
+  changePasswordValidation,
   UserController.changePassword
 );
+
+// Admin routes
+router.use('/admin', adminRoutes);
 
 module.exports = router;

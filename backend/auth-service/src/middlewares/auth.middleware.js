@@ -1,7 +1,6 @@
 const JWTService = require('../services/jwt.service');
 
 const authMiddleware = {
-  // Authenticate using JWT token
   authenticate: async (req, res, next) => {
     try {
       const authHeader = req.headers.authorization;
@@ -46,7 +45,7 @@ const authMiddleware = {
   },
 
   // Role-based authorization
-  authorize: (...roles) => {
+  authorize: (...allowedRoles) => {
     return (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({
@@ -55,10 +54,10 @@ const authMiddleware = {
         });
       }
 
-      if (!roles.includes(req.user.role)) {
+      if (!allowedRoles.includes(req.user.role)) {
         return res.status(403).json({
           success: false,
-          message: 'Insufficient permissions'
+          message: `Access denied. Required roles: ${allowedRoles.join(', ')}`
         });
       }
 
@@ -66,28 +65,33 @@ const authMiddleware = {
     };
   },
 
-  // Optional authentication (for public endpoints)
-  optionalAuth: async (req, res, next) => {
-    try {
-      const authHeader = req.headers.authorization;
-      
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        
-        const isBlacklisted = await JWTService.isTokenBlacklisted(token);
-        if (!isBlacklisted) {
-          const decoded = JWTService.verifyAccessToken(token);
-          if (decoded) {
-            req.user = decoded;
-          }
-        }
+  // Check if user is owner of resource
+  isOwner: (resourceUserIdField = 'userId') => {
+    return (req, res, next) => {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
       }
+
+      // Admin can access everything
+      if (req.user.role === 'ADMIN') {
+        return next();
+      }
+
+      // Check if user owns the resource
+      const resourceUserId = req.params[resourceUserIdField] || req.body[resourceUserIdField];
       
+      if (req.user.userId !== resourceUserId && req.user.role !== 'ADMIN') {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only access your own resources'
+        });
+      }
+
       next();
-    } catch (error) {
-      // Continue without authentication
-      next();
-    }
+    };
   }
 };
 

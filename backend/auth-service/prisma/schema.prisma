@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
@@ -19,6 +25,15 @@ model User {
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
+  // Driver-specific fields
+  licenseNumber String?
+  vehicleType   String?   // "car", "motorbike", "bike"
+  vehicleNumber String?
+  rating        Float     @default(5.0)
+  totalTrips    Int       @default(0)
+  isAvailable   Boolean   @default(false)
+  
   refreshTokens RefreshToken[]
   profile       Profile?
   
