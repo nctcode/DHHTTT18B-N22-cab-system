@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  review-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cab-booking-review-service
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      # Use MongoDB Atlas in production
+      - MONGODB_URI=${MONGODB_URI}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+    networks:
+      - cab-booking-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3006/health', (r) => {if(r.statusCode !== 200) throw new Error()})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Local MongoDB for development (optional)
+  mongo-dev:
+    image: mongo:7.0
+    container_name: review-service-mongo-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-dev-data:/data/db
+    networks:
+      - cab-booking-network
+    command: mongod --bind_ip_all
+    environment:
+      - MONGO_INITDB_DATABASE=cab_booking_reviews
+
+networks:
+  cab-booking-network:
+    driver: bridge
+
+volumes:
+  mongo-dev-data:

@@ -1,0 +1,36 @@
+@baseUrl = http://localhost:3006
+@reviewId = {{createReview.response.body.data.id}}
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Create Review
+# @name createReview
+POST {{baseUrl}}/api/reviews
+Content-Type: application/json
+
+{
+  "rideId": "11111111-1111-1111-1111-111111111111",
+  "userId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "driverId": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+  "rating": 5,
+  "comment": "Excellent driver! Very professional and safe driving."
+}
+
+### Get Review by ID
+GET {{baseUrl}}/api/reviews/{{reviewId}}
+
+### Get Reviews by Driver
+GET {{baseUrl}}/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd?page=1&limit=10
+
+### Get Reviews by User
+GET {{baseUrl}}/api/reviews/user/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?page=1&limit=10
+
+### Get Driver Average Rating
+GET {{baseUrl}}/api/reviews/driver/dddddddd-dddd-dddd-dddd-dddddddddddd/average
+
+### Check if User Reviewed Ride
+GET {{baseUrl}}/api/reviews/check?rideId=11111111-1111-1111-1111-111111111111&userId=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+
+### Delete Review (Admin)
+DELETE {{baseUrl}}/api/reviews/{{reviewId}}
