@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model - main user table
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  phone        String    @unique
+  avatar       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  profile      Profile?
+  
+  @@map("user_db")
+  @@index([phone])
+  @@index([createdAt])
+}
+
+// User profile model for detailed user information
+model Profile {
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Personal information
+  bio                   String?
+  dateOfBirth           DateTime?
+  gender                String?   // "MALE", "FEMALE", "OTHER"
+  
+  // Address information
+  address               String?
+  city                  String?
+  state                 String?
+  zipCode               String?
+  country               String?
+  
+  // Emergency contact
+  emergencyContact      String?
+  emergencyContactPhone String?
+  
+  // Home and work addresses
+  homeAddress           String?
+  workAddress           String?
+  
+  // Ride statistics
+  rideCount             Int       @default(0)
+  totalSpent            Float     @default(0)
+  averageRating         Float     @default(5.0)
+  numberOfRatings       Int       @default(0)
+  
+  // Account status
+  isVerified            Boolean   @default(false)
+  isPhoneVerified       Boolean   @default(false)
+  isEmailVerified       Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  isBlocked             Boolean   @default(false)
+  
+  // User preferences
+  preferences           Json      @default("{}")
+  notificationSettings  Json      @default("{\"email\": true, \"sms\": true, \"push\": true}")
+  
+  // Activity tracking
+  lastActiveAt          DateTime  @default(now())
+  
+  // Metadata
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@map("profile")
+  @@index([userId])
+  @@index([createdAt])
+}
