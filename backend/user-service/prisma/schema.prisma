@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Customer model for ride-sharing customers
+model Customer {
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  phoneNumber       String?
+  homeAddress       String?
+  workAddress       String?
+  emergencyContact  String?
+  
+  // Ride statistics
+  rideCount         Int       @default(0)
+  totalSpent        Float     @default(0)
+  averageRating     Float     @default(5.0)
+  totalRating       Float     @default(0)
+  numberOfRatings   Int       @default(0)
+  
+  // Account status
+  isVerified        Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  isBlocked         Boolean   @default(false)
+  
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastActivityAt    DateTime  @default(now())
+  
+  // Relations
+  userProfile       UserProfile?
+  
+  @@map("customers")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// User profile model for detailed user information
+model UserProfile {
+  id                    String    @id @default(uuid())
+  customerId            String    @unique
+  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  // Personal information
+  bio                   String?
+  profilePicture        String?
+  dateOfBirth           DateTime?
+  gender                String?   // "MALE", "FEMALE", "OTHER"
+  
+  // Address information
+  address               String?
+  city                  String?
+  state                 String?
+  zipCode               String?
+  country               String?
+  
+  // Emergency contact
+  emergencyContact      String?
+  emergencyContactPhone String?
+  
+  // Verification status
+  verificationStatus    String    @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  isPhoneVerified       Boolean   @default(false)
+  isEmailVerified       Boolean   @default(false)
+  
+  // User preferences
+  preferences           Json      @default("{}")
+  socialLinks           Json      @default("{}")
+  notificationPreferences Json    @default("{\"email\": true, \"sms\": true, \"push\": true}")
+  
+  // Activity tracking
+  lastActiveAt          DateTime  @default(now())
+  
+  // Metadata
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  @@map("user_profiles")
+  @@index([customerId])
+  @@index([verificationStatus])
+}
+
+// Payment method model for storing customer payment information
+model PaymentMethod {
+  id                String    @id @default(uuid())
+  customerId        String
+  
+  // Payment details
+  cardNumber        String?
+  cardHolder        String?
+  expiryMonth       Int?
+  expiryYear        Int?
+  cvv               String?
+  
+  // Wallet information
+  walletBalance     Float     @default(0)
+  walletType        String?   // "PREPAID", "POSTPAID"
+  
+  // Metadata
+  isDefault         Boolean   @default(true)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("payment_methods")
+  @@index([customerId])
+}
+
+// Favorite locations model
+model FavoriteLocation {
+  id                String    @id @default(uuid())
+  customerId        String
+  
+  // Location details
+  label             String    // "HOME", "WORK", "FAVORITE", "OTHER"
+  address           String
+  latitude          Float
+  longitude         Float
+  
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@map("favorite_locations")
+  @@index([customerId])
+  @@index([label])
+}
+
+// Ride history model
+model RideHistory {
+  id                String    @id @default(uuid())
+  customerId        String
+  
+  // Ride details
+  rideId            String
+  driverId          String?
+  pickupLocation    String
+  dropLocation      String
+  fare              Float
+  rating            Int?      // 1-5 stars
+  feedback          String?
+  
+  // Ride status
+  status            String    // "COMPLETED", "CANCELLED", "NO_SHOW"
+  rideDate          DateTime
+  
+  // Metadata
+  createdAt         DateTime  @default(now())
+  
+  @@map("ride_history")
+  @@index([customerId])
+  @@index([rideId])
+  @@index([rideDate])
+}

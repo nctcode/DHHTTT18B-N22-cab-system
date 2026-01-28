@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  auth-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+
+  auth-service:
+    build: .
+    ports:
+      - "4001:4001"
+    depends_on:
+      - auth-db
