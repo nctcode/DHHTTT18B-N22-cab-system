@@ -1,27 +1,10 @@
-const UserProfileModel = require('../models/UserProfile');
-const CustomerModel = require('../models/Customer');
+const ProfileModel = require('../models/Profile');
 
 class ProfileService {
-  // Get user profile by userId (through customer)
+  // Get user profile
   static async getUserProfile(userId) {
     try {
-      const profile = await UserProfileModel.findProfileByUserId(userId);
-      if (!profile) {
-        throw new Error('Profile not found for this user');
-      }
-      return {
-        success: true,
-        data: profile
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch user profile: ${error.message}`);
-    }
-  }
-
-  // Get profile by customerId
-  static async getProfileByCustomerId(customerId) {
-    try {
-      const profile = await UserProfileModel.findProfileByCustomerId(customerId);
+      const profile = await ProfileModel.findProfileByUserId(userId);
       if (!profile) {
         throw new Error('Profile not found');
       }
@@ -34,15 +17,15 @@ class ProfileService {
     }
   }
 
-  // Update user profile by userId
+  // Update user profile
   static async updateUserProfile(userId, updateData) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
+      // Convert dateOfBirth if provided
+      if (updateData.dateOfBirth) {
+        updateData.dateOfBirth = new Date(updateData.dateOfBirth);
       }
-      
-      const profile = await UserProfileModel.updateProfile(customer.id, updateData);
+
+      const profile = await ProfileModel.updateProfile(userId, updateData);
       return {
         success: true,
         message: 'Profile updated successfully',
@@ -53,42 +36,24 @@ class ProfileService {
     }
   }
 
-  // Update notification preferences by userId
-  static async updateNotificationPreferences(userId, preferences) {
+  // Update notification settings
+  static async updateNotificationSettings(userId, settings) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      const profile = await UserProfileModel.updateNotificationPreferences(
-        customer.id,
-        preferences
-      );
+      const profile = await ProfileModel.updateNotificationSettings(userId, settings);
       return {
         success: true,
-        message: 'Notification preferences updated',
+        message: 'Notification settings updated',
         data: profile
       };
     } catch (error) {
-      throw new Error(
-        `Failed to update notification preferences: ${error.message}`
-      );
+      throw new Error(`Failed to update notification settings: ${error.message}`);
     }
   }
 
-  // Verify phone number by userId
+  // Verify phone
   static async verifyPhone(userId) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      const profile = await UserProfileModel.updatePhoneVerification(
-        customer.id,
-        true
-      );
+      const profile = await ProfileModel.updatePhoneVerification(userId, true);
       return {
         success: true,
         message: 'Phone verified successfully',
@@ -99,18 +64,10 @@ class ProfileService {
     }
   }
 
-  // Verify email by userId
+  // Verify email
   static async verifyEmail(userId) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      const profile = await UserProfileModel.updateEmailVerification(
-        customer.id,
-        true
-      );
+      const profile = await ProfileModel.updateEmailVerification(userId, true);
       return {
         success: true,
         message: 'Email verified successfully',
@@ -121,15 +78,10 @@ class ProfileService {
     }
   }
 
-  // Update user last active time by userId
+  // Update last active
   static async updateLastActive(userId) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      await UserProfileModel.updateLastActive(customer.id);
+      await ProfileModel.updateLastActive(userId);
       return {
         success: true,
         message: 'Last active updated'
@@ -139,81 +91,44 @@ class ProfileService {
     }
   }
 
-  // Update verification status by userId
+  // Update verification status
   static async updateVerificationStatus(userId, status) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      const profile = await UserProfileModel.updateVerificationStatus(
-        customer.id,
-        status
-      );
+      const profile = await ProfileModel.updateVerificationStatus(userId, status);
       return {
         success: true,
         message: 'Verification status updated',
         data: profile
       };
     } catch (error) {
-      throw new Error(
-        `Failed to update verification status: ${error.message}`
-      );
+      throw new Error(`Failed to update verification status: ${error.message}`);
     }
   }
 
-  // Get verification details by userId
+  // Get verification details
   static async getVerificationDetails(userId) {
     try {
-      const profile = await UserProfileModel.findProfileByUserId(userId);
+      const profile = await ProfileModel.findProfileByUserId(userId);
       if (!profile) {
         throw new Error('Profile not found');
       }
       return {
         success: true,
         data: {
-          verificationStatus: profile.verificationStatus,
+          isVerified: profile.isVerified,
           isPhoneVerified: profile.isPhoneVerified,
           isEmailVerified: profile.isEmailVerified
         }
       };
     } catch (error) {
-      throw new Error(
-        `Failed to fetch verification details: ${error.message}`
-      );
+      throw new Error(`Failed to fetch verification details: ${error.message}`);
     }
   }
 
-  // Get user preferences by userId
-  static async getUserPreferences(userId) {
-    try {
-      const profile = await UserProfileModel.findProfileByUserId(userId);
-      if (!profile) {
-        throw new Error('Profile not found');
-      }
-      return {
-        success: true,
-        data: {
-          preferences: profile.preferences,
-          notificationPreferences: profile.notificationPreferences,
-          socialLinks: profile.socialLinks
-        }
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch user preferences: ${error.message}`);
-    }
-  }
-
-  // Delete profile by userId
+  // Delete profile
   static async deleteProfile(userId) {
     try {
-      const customer = await CustomerModel.findCustomerByUserId(userId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      await UserProfileModel.deleteProfile(customer.id);
+      await ProfileModel.deleteProfile(userId);
       return {
         success: true,
         message: 'Profile deleted successfully'
