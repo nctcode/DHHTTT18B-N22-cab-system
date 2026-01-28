@@ -10,49 +10,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Customer model for ride-sharing customers
-model Customer {
-  id                String    @id @default(uuid())
-  userId            String    @unique
-  phoneNumber       String?
-  homeAddress       String?
-  workAddress       String?
-  emergencyContact  String?
-  
-  // Ride statistics
-  rideCount         Int       @default(0)
-  totalSpent        Float     @default(0)
-  averageRating     Float     @default(5.0)
-  totalRating       Float     @default(0)
-  numberOfRatings   Int       @default(0)
-  
-  // Account status
-  isVerified        Boolean   @default(false)
-  isActive          Boolean   @default(true)
-  isBlocked         Boolean   @default(false)
-  
-  // Metadata
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  lastActivityAt    DateTime  @default(now())
+// User model - main user table
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  phone        String    @unique
+  avatar       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   
   // Relations
-  userProfile       UserProfile?
+  profile      Profile?
   
-  @@map("customers")
-  @@index([userId])
+  @@map("user_db")
+  @@index([phone])
   @@index([createdAt])
 }
 
 // User profile model for detailed user information
-model UserProfile {
+model Profile {
   id                    String    @id @default(uuid())
-  customerId            String    @unique
-  customer              Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // Personal information
   bio                   String?
-  profilePicture        String?
   dateOfBirth           DateTime?
   gender                String?   // "MALE", "FEMALE", "OTHER"
   
@@ -67,15 +49,26 @@ model UserProfile {
   emergencyContact      String?
   emergencyContactPhone String?
   
-  // Verification status
-  verificationStatus    String    @default("PENDING") // "PENDING", "VERIFIED", "REJECTED"
+  // Home and work addresses
+  homeAddress           String?
+  workAddress           String?
+  
+  // Ride statistics
+  rideCount             Int       @default(0)
+  totalSpent            Float     @default(0)
+  averageRating         Float     @default(5.0)
+  numberOfRatings       Int       @default(0)
+  
+  // Account status
+  isVerified            Boolean   @default(false)
   isPhoneVerified       Boolean   @default(false)
   isEmailVerified       Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  isBlocked             Boolean   @default(false)
   
   // User preferences
   preferences           Json      @default("{}")
-  socialLinks           Json      @default("{}")
-  notificationPreferences Json    @default("{\"email\": true, \"sms\": true, \"push\": true}")
+  notificationSettings  Json      @default("{\"email\": true, \"sms\": true, \"push\": true}")
   
   // Activity tracking
   lastActiveAt          DateTime  @default(now())
@@ -84,80 +77,7 @@ model UserProfile {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   
-  @@map("user_profiles")
-  @@index([customerId])
-  @@index([verificationStatus])
-}
-
-// Payment method model for storing customer payment information
-model PaymentMethod {
-  id                String    @id @default(uuid())
-  customerId        String
-  
-  // Payment details
-  cardNumber        String?
-  cardHolder        String?
-  expiryMonth       Int?
-  expiryYear        Int?
-  cvv               String?
-  
-  // Wallet information
-  walletBalance     Float     @default(0)
-  walletType        String?   // "PREPAID", "POSTPAID"
-  
-  // Metadata
-  isDefault         Boolean   @default(true)
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  @@map("payment_methods")
-  @@index([customerId])
-}
-
-// Favorite locations model
-model FavoriteLocation {
-  id                String    @id @default(uuid())
-  customerId        String
-  
-  // Location details
-  label             String    // "HOME", "WORK", "FAVORITE", "OTHER"
-  address           String
-  latitude          Float
-  longitude         Float
-  
-  // Metadata
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  @@map("favorite_locations")
-  @@index([customerId])
-  @@index([label])
-}
-
-// Ride history model
-model RideHistory {
-  id                String    @id @default(uuid())
-  customerId        String
-  
-  // Ride details
-  rideId            String
-  driverId          String?
-  pickupLocation    String
-  dropLocation      String
-  fare              Float
-  rating            Int?      // 1-5 stars
-  feedback          String?
-  
-  // Ride status
-  status            String    // "COMPLETED", "CANCELLED", "NO_SHOW"
-  rideDate          DateTime
-  
-  // Metadata
-  createdAt         DateTime  @default(now())
-  
-  @@map("ride_history")
-  @@index([customerId])
-  @@index([rideId])
-  @@index([rideDate])
+  @@map("profile")
+  @@index([userId])
+  @@index([createdAt])
 }

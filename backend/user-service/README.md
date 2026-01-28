@@ -1,195 +1,216 @@
-# User Service
+# User Service - Cab Booking System
 
-The User Service manages customer and user profile data for the cab booking system. It handles customer registration, profile management, verification, and user preferences.
+## Overview
 
-## Features
-
-- Customer profile management
-- User profile and preferences
-- Email and phone verification
-- Customer statistics tracking
-- Notification preferences management
-- Account activation/deactivation
-- Ride history statistics
-
-## Technology Stack
-
-- Node.js with Express.js
-- PostgreSQL with Prisma ORM
-- Redis for caching
-- Docker for containerization
-
-## Prerequisites
-
-- Node.js (v18+)
-- PostgreSQL
-- Redis
-
-## Installation
-
-```bash
-cd backend/user-service
-npm install
-```
-
-## Configuration
-
-1. Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-
-2. Update the `.env` file with your configuration:
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/cab_user_service
-REDIS_URL=redis://localhost:6379/0
-PORT=5003
-```
-
-## Running the Service
-
-### Development
-```bash
-npm run dev
-```
-
-### Production
-```bash
-npm start
-```
-
-## API Endpoints
-
-### Customer Endpoints
-
-#### Register Customer Profile
-- **POST** `/api/users/customers/:customerId/register`
-- Register a new customer profile
-- Required fields: firstName, lastName, email, phone
-
-#### Get Customer Profile
-- **GET** `/api/users/customers/:customerId`
-- Retrieve customer profile information
-
-#### Update Customer Profile
-- **PUT** `/api/users/customers/:customerId`
-- Update customer profile details
-
-#### Record Ride Completion
-- **POST** `/api/users/customers/:customerId/ride-completion`
-- Record completed ride and update statistics
-- Required fields: fare (optional: rating)
-
-#### Get Customer Statistics
-- **GET** `/api/users/customers/:customerId/stats`
-- Retrieve customer ride statistics and metrics
-
-#### Verify Customer
-- **POST** `/api/users/customers/:customerId/verify`
-- Mark customer as verified
-
-#### Deactivate Customer
-- **POST** `/api/users/customers/:customerId/deactivate`
-- Deactivate customer account
-
-#### Activate Customer
-- **POST** `/api/users/customers/:customerId/activate`
-- Reactivate customer account
-
-#### Delete Customer
-- **DELETE** `/api/users/customers/:customerId`
-- Permanently delete customer profile
-
-#### Get All Customers (Admin)
-- **GET** `/api/users/customers?skip=0&take=10`
-- List all customers with pagination
-
-### Profile Endpoints
-
-#### Get User Profile
-- **GET** `/api/users/profiles/:userId`
-- Retrieve full user profile with user data
-
-#### Update User Profile
-- **PUT** `/api/users/profiles/:userId`
-- Update user profile information
-
-#### Update Notification Preferences
-- **PUT** `/api/users/profiles/:userId/notifications`
-- Update notification settings
-
-#### Verify Phone
-- **POST** `/api/users/profiles/:userId/verify-phone`
-- Mark phone as verified
-
-#### Verify Email
-- **POST** `/api/users/profiles/:userId/verify-email`
-- Mark email as verified
-
-#### Get Verification Details
-- **GET** `/api/users/profiles/:userId/verification`
-- Retrieve verification status
-
-#### Get User Preferences
-- **GET** `/api/users/profiles/:userId/preferences`
-- Retrieve user preferences and settings
-
-#### Update Verification Status
-- **PUT** `/api/users/profiles/:userId/verification-status`
-- Update verification status (PENDING, VERIFIED, REJECTED)
-
-#### Delete Profile
-- **DELETE** `/api/users/profiles/:userId`
-- Permanently delete user profile
-
-## Docker
-
-Build and run the service using Docker:
-
-```bash
-# Build image
-docker build -t user-service:latest .
-
-# Run container
-docker run -p 5003:5003 --env-file .env user-service:latest
-```
+User Service is responsible for managing user accounts and profiles in the cab booking system. It handles user registration, profile management, verification, and user statistics.
 
 ## Database Schema
 
-The service uses Prisma ORM with the following main entities:
+**PostgreSQL Database with two main tables:**
 
-### Customer
-- customerId (unique identifier)
-- firstName, lastName
-- email, phone
-- profile picture, address details
-- rideCount, totalSpent, averageRating
-- isVerified, isActive timestamps
+### user_db table
+```
+id        (uuid, primary key)
+name      (varchar, required)
+phone     (varchar, unique, required)
+avatar    (text, optional)
+created_at (timestamp)
+updated_at (timestamp)
+```
 
-### UserProfile
-- userId (reference to User table)
-- bio, profile picture
-- contact information
-- preferences, socialLinks
-- verification status
-- notification preferences
+### profile table
+```
+id                      (uuid, primary key)
+userId                  (uuid, foreign key to user_db)
+bio                     (text, optional)
+dateOfBirth             (timestamp, optional)
+gender                  (varchar, optional) - MALE, FEMALE, OTHER
+address, city, state    (varchar, optional)
+homeAddress, workAddress (varchar, optional)
+rideCount               (integer, default: 0)
+totalSpent              (float, default: 0)
+averageRating           (float, default: 5.0)
+isVerified              (boolean, default: false)
+isPhoneVerified         (boolean, default: false)
+isEmailVerified         (boolean, default: false)
+isActive                (boolean, default: true)
+isBlocked               (boolean, default: false)
+created_at, updated_at  (timestamp)
+```
+
+## Quick Start
+
+### Prerequisites
+- Node.js (v14+)
+- PostgreSQL
+- npm or yarn
+
+### Installation
+
+```bash
+cd backend/user-service
+
+# Install dependencies
+npm install
+
+# Setup environment variables
+cp .env.example .env
+
+# Update DATABASE_URL in .env
+# Example: postgresql://user:password@localhost:5432/user_service
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev
+
+# Start development server
+npm run dev
+```
+
+The service will run on `http://localhost:5003`
+
+## API Documentation
+
+### Swagger UI
+Once the service is running, access the interactive API documentation at:
+
+```
+http://localhost:5003/api-docs
+```
+
+### Quick API Examples
+
+#### Register User
+```bash
+POST /api/users/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "phone": "+84912345678",
+  "homeAddress": "123 Main Street",
+  "bio": "Professional driver"
+}
+```
+
+#### Get User
+```bash
+GET /api/users/{userId}
+```
+
+#### Get User Profile
+```bash
+GET /api/users/profile/{userId}
+```
+
+#### Update Profile
+```bash
+PUT /api/users/profile/{userId}
+Content-Type: application/json
+
+{
+  "bio": "Updated bio",
+  "dateOfBirth": "1990-05-15",
+  "gender": "MALE",
+  "homeAddress": "456 New Street"
+}
+```
+
+#### Verify Phone
+```bash
+POST /api/users/profile/{userId}/verify-phone
+```
+
+#### Verify Email
+```bash
+POST /api/users/profile/{userId}/verify-email
+```
+
+## Project Structure
+
+```
+src/
+├── models/             # Database models (User, Profile)
+├── services/           # Business logic (UserService, ProfileService)
+├── controllers/        # Request handlers
+├── routes/             # API routes with Swagger JSDoc
+├── config/
+│   ├── swagger.js     # Swagger configuration
+│   └── app.config.js  # Application config
+├── utils/              # Utility functions
+├── constants/          # Global constants
+└── server.js          # Express server setup
+```
+
+## Environment Variables
+
+```env
+PORT=5003
+DATABASE_URL=postgresql://user:password@localhost:5432/user_service
+NODE_ENV=development
+```
+
+## Scripts
+
+```bash
+npm run dev        # Start development server with nodemon
+npm start          # Start production server
+npm test           # Run tests
+npx prisma studio # Open Prisma Studio GUI
+npx prisma migrate dev  # Run database migrations
+```
+
+## API Endpoints Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/users/register` | Register new user |
+| GET | `/api/users/{userId}` | Get user details |
+| GET | `/api/users` | Get all users (paginated) |
+| GET | `/api/users/phone/{phone}` | Get user by phone |
+| PUT | `/api/users/{userId}` | Update user info |
+| DELETE | `/api/users/{userId}` | Delete user |
+| GET | `/api/users/profile/{userId}` | Get user profile |
+| PUT | `/api/users/profile/{userId}` | Update profile |
+| PUT | `/api/users/profile/{userId}/notifications` | Update notification settings |
+| POST | `/api/users/profile/{userId}/verify-phone` | Verify phone |
+| POST | `/api/users/profile/{userId}/verify-email` | Verify email |
+| GET | `/api/users/profile/{userId}/stats` | Get user statistics |
+| GET | `/health` | Health check |
+
+## Testing
+
+Visit the Swagger UI at `http://localhost:5003/api-docs` to test all endpoints interactively.
+
+## Features
+
+- User registration with auto-generated profile
+- Profile management (bio, address, contact info)
+- Phone and email verification
+- Ride statistics tracking
+- Account activation/deactivation
+- User blocking functionality
+- Notification preferences management
+- Date of birth handling with automatic conversion
+- Complete audit trail with timestamps
 
 ## Error Handling
 
-The service implements comprehensive error handling with appropriate HTTP status codes:
-- 400: Bad Request (validation errors)
-- 404: Not Found (resource not found)
-- 500: Internal Server Error
+All endpoints return consistent error responses:
 
-## Health Check
-
-Health check endpoint available at:
-- **GET** `/health`
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
 
 ## Contributing
 
-Follow the existing code structure and patterns. Ensure all new endpoints include proper validation and error handling.
+Follow the existing code structure and patterns when adding new features. Update Swagger documentation in routes before committing.
 
-## License
+## Support
 
-ISC
+For issues or questions, contact the development team at dev@cabbooking.com
