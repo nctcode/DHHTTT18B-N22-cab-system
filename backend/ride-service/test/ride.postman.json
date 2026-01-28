@@ -1,0 +1,44 @@
+{
+  "info": {
+    "name": "Ride Service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Ride",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3005/rides",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"bookingId\": \"b001\",\n  \"userId\": \"u001\",\n  \"pickup\": \"A Street\",\n  \"dropoff\": \"B Street\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Assign Driver",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:3005/rides/{{rideId}}/assign-driver",
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"driverId\": \"d001\" }"
+        }
+      }
+    },
+    {
+      "name": "Start Ride",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:3005/rides/{{rideId}}/start"
+      }
+    },
+    {
+      "name": "Complete Ride",
+      "request": {
+        "method": "PUT",
+        "url": "http://localhost:3005/rides/{{rideId}}/complete"
+      }
+    }
+  ]
+}
