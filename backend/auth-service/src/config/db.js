@@ -5,3 +5,4 @@ const pool = new Pool({
 });
 
 module.exports = pool;
+//# sourceMappingURL=db.js.map
