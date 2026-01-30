@@ -1,0 +1,255 @@
+{
+  "info": {
+    "_postman_id": "driver-service-api-collection",
+    "name": "API Dịch vụ Tài xế",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Bộ sưu tập Postman đầy đủ để kiểm thử Dịch vụ Tài xế"
+  },
+  "item": [
+    {
+      "name": "🔧 Kiểm tra tình trạng",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "http://localhost:3003/health"
+      }
+    },
+    {
+      "name": "👥 Quản lý Tài xế",
+      "item": [
+        {
+          "name": "📋 Lấy tất cả tài xế",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/drivers?page=1&limit=10"
+          }
+        },
+        {
+          "name": "➕ Tạo Tài xế - Thành công",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nguyễn Văn Test\",\n  \"phone\": \"0911111111\",\n  \"vehicle_type\": \"car\",\n  \"vehicle_plate\": \"51T-99999\",\n  \"status\": \"OFFLINE\",\n  \"rating\": 5.0\n}"
+            },
+            "url": "http://localhost:3003/drivers"
+          }
+        },
+        {
+          "name": "👤 Lấy Tài xế theo ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/drivers/{{driverId}}"
+          }
+        },
+        {
+          "name": "✏️ Cập nhật Tài xế",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Tên Tài xế Đã Cập nhật\",\n  \"phone\": \"0911111111\",\n  \"vehicle_type\": \"premium\",\n  \"vehicle_plate\": \"51T-99999\",\n  \"rating\": 4.9\n}"
+            },
+            "url": "http://localhost:3003/drivers/{{driverId}}"
+          }
+        },
+        {
+          "name": "🔄 Cập nhật Trạng thái Tài xế",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ONLINE\"\n}"
+            },
+            "url": "http://localhost:3003/drivers/{{driverId}}/status"
+          }
+        },
+        {
+          "name": "🗑️ Xóa Tài xế",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "http://localhost:3003/drivers/{{driverId}}"
+          }
+        },
+        {
+          "name": "❌ Lỗi Xác thực",
+          "item": [
+            {
+              "name": "Số điện thoại không hợp lệ",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test\",\n  \"phone\": \"123\",\n  \"vehicle_type\": \"car\",\n  \"vehicle_plate\": \"51A-12345\"\n}"
+                },
+                "url": "http://localhost:3003/drivers"
+              }
+            },
+            {
+              "name": "Biển số xe không hợp lệ",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test\",\n  \"phone\": \"0912345678\",\n  \"vehicle_type\": \"car\",\n  \"vehicle_plate\": \"123\"\n}"
+                },
+                "url": "http://localhost:3003/drivers"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📍 Dịch vụ Vị trí",
+      "item": [
+        {
+          "name": "📍 Cập nhật Vị trí Tài xế",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driverId}}\",\n  \"lat\": 10.7769,\n  \"lng\": 106.7009\n}"
+            },
+            "url": "http://localhost:3003/locations/update"
+          }
+        },
+        {
+          "name": "🔍 Tìm Tài xế Gần đây",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/locations/nearby?lat=10.7769&lng=106.7009&radius=5&limit=10"
+          }
+        },
+        {
+          "name": "📍 Lấy Vị trí Tài xế",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/locations/{{driverId}}"
+          }
+        },
+        {
+          "name": "📜 Lấy Lịch sử Vị trí",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/locations/{{driverId}}/history?hours=24"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧪 Kịch bản Kiểm thử",
+      "item": [
+        {
+          "name": "Kịch bản 1: Vòng đời Hoàn chỉnh của Tài xế",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "http://localhost:3003/health"
+          }
+        },
+        {
+          "name": "Kịch bản 2: Tạo Nhiều Tài xế",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"Tài xế 1\",\n    \"phone\": \"0911111111\",\n    \"vehicle_type\": \"car\",\n    \"vehicle_plate\": \"51A-11111\"\n  },\n  {\n    \"name\": \"Tài xế 2\",\n    \"phone\": \"0922222222\",\n    \"vehicle_type\": \"bike\",\n    \"vehicle_plate\": \"51B-22222\"\n  },\n  {\n    \"name\": \"Tài xế 3\",\n    \"phone\": \"0933333333\",\n    \"vehicle_type\": \"premium\",\n    \"vehicle_plate\": \"51C-33333\"\n  }\n]"
+            },
+            "url": "http://localhost:3003/drivers/batch"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3003"
+    },
+    {
+      "key": "driverId",
+      "value": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "console.log('Bắt đầu kiểm thử cho: ' + pm.request.name);",
+          "pm.environment.set('timestamp', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Kiểm tra chung cho tất cả các yêu cầu",
+          "pm.test('Mã trạng thái là 2xx', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+          "});",
+          "",
+          "pm.test('Thời gian phản hồi nhỏ hơn 1000ms', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+          "});",
+          "",
+          "pm.test('Phản hồi có kiểu nội dung JSON', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ]
+}
