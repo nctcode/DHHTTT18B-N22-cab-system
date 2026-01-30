@@ -1,5 +1,5 @@
 const service = require('../services/auth.service');
-
+// Auth Controller for user authentication
 exports.register = async (req, res) => {
   const { email, password, role } = req.body;
   const user = await service.register(email, password, role);

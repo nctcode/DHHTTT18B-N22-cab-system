@@ -1,5 +1,5 @@
 const db = require('../config/db');
-
+// Auth Model for interacting with the accounts table
 exports.findByEmail = (email) =>
   db.query('SELECT * FROM accounts WHERE email=$1', [email]);
 
