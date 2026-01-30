@@ -65,8 +65,3 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-enum Role {
-  CUSTOMER
-  DRIVER
-  ADMIN
-}

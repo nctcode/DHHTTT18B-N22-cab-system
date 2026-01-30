@@ -1,14 +1,16 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+
 
 const authRoutes = require('../routes/auth.routes');
 const { createRedisClient } = require('./redis');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+console.log(process.env.DATABASE_URL)
 
 // Security middleware
 app.use(helmet());
