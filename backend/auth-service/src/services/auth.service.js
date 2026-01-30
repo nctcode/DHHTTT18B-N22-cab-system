@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const model = require('../models/auth.model');
 const passwordUtil = require('../utils/password');
 const jwtConfig = require('../config/jwt');
-
+// Auth Service for handling registration and login logic
 exports.register = async (email, password, role) => {
   const hashed = await passwordUtil.hash(password);
   return model.create(email, hashed, role);
