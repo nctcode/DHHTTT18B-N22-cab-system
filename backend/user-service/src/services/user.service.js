@@ -1,149 +1,152 @@
 const UserModel = require('../models/User');
-const ProfileModel = require('../models/Profile');
+const { ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../constants');
 
 class UserService {
-  // Register new user with auto-create profile
+  /**
+   * Register new user profile.
+   */
   static async registerUser(userData) {
-    try {
-      // Create user
-      const user = await UserModel.createUser({
-        name: userData.name,
-        phone: userData.phone,
-        avatar: userData.avatar
-      });
-
-      // Auto-create profile
-      const profile = await ProfileModel.createProfile(user.id, {
-        bio: userData.bio || null,
-        dateOfBirth: userData.dateOfBirth || null,
-        gender: userData.gender || null,
-        homeAddress: userData.homeAddress || null,
-        workAddress: userData.workAddress || null,
-        emergencyContact: userData.emergencyContact || null,
-        emergencyContactPhone: userData.emergencyContactPhone || null
-      });
-
-      return {
-        success: true,
-        message: 'User registered successfully',
-        data: { user, profile }
-      };
-    } catch (error) {
-      throw new Error(`Failed to register user: ${error.message}`);
+    // Check if phone number already exists
+    const phoneExists = await UserModel.phoneExists(userData.phone);
+    if (phoneExists) {
+      const error = new Error(ERROR_MESSAGES.USER_ALREADY_EXISTS);
+      error.statusCode = 409;
+      throw error;
     }
-  }
-
-  // Get user profile (basic user info)
-  static async getUserProfile(userId) {
-    try {
-      const user = await UserModel.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
+    
+    // Check if email already exists
+    if (userData.email) {
+      const emailUser = await UserModel.findUserByEmail(userData.email);
+      if (emailUser) {
+        const error = new Error('Email already in use');
+        error.statusCode = 409;
+        throw error;
       }
-      return {
-        success: true,
-        data: user
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch user profile: ${error.message}`);
     }
+
+    // Create new user
+    const newUser = await UserModel.createUser(userData);
+    newUser.addresses = [];
+
+    return newUser;
   }
 
-  // Get user with full profile details
-  static async getUserProfileDetails(userId) {
-    try {
-      const user = await UserModel.findUserById(userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      
-      const profile = await ProfileModel.findProfileByUserId(userId);
-      
-      return {
-        success: true,
-        data: {
-          user,
-          profile: profile || null
-        }
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch user profile details: ${error.message}`);
+  /**
+   * Get user by ID
+   */
+  static async getUserById(userId) {
+    const user = await UserModel.findUserById(userId);
+
+    if (!user) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+      error.statusCode = 404;
+      throw error;
     }
+
+    // Fetch addresses separately
+    const addresses = await UserModel.getUserAddresses(userId);
+    user.addresses = addresses;
+
+    return user;
   }
 
-  // Get user by phone
-  static async getUserByPhone(phone) {
-    try {
-      const user = await UserModel.findUserByPhone(phone);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      return {
-        success: true,
-        data: user
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch user: ${error.message}`);
-    }
-  }
-
-  // Get all users
-  static async getAllUsers(skip = 0, take = 10) {
-    try {
-      const users = await UserModel.findAllUsers(skip, take);
-      const total = await UserModel.countUsers();
-      return {
-        success: true,
-        data: users,
-        pagination: { skip, take, total }
-      };
-    } catch (error) {
-      throw new Error(`Failed to fetch users: ${error.message}`);
-    }
-  }
-
-  // Update user
+  /**
+   * Update user by ID
+   */
   static async updateUser(userId, updateData) {
-    try {
-      const user = await UserModel.updateUser(userId, {
-        name: updateData.name,
-        avatar: updateData.avatar
-      });
-      return {
-        success: true,
-        message: 'User updated successfully',
-        data: user
-      };
-    } catch (error) {
-      throw new Error(`Failed to update user: ${error.message}`);
+    // Check if user exists
+    const existingUser = await UserModel.findUserById(userId);
+    if (!existingUser) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+      error.statusCode = 404;
+      throw error;
     }
+
+    // Check conflicts
+    if (updateData.phone && updateData.phone !== existingUser.phone) {
+      const phoneExists = await UserModel.phoneExists(updateData.phone, userId);
+      if (phoneExists) {
+         const error = new Error(ERROR_MESSAGES.USER_ALREADY_EXISTS);
+         error.statusCode = 409;
+         throw error;
+      }
+    }
+
+    if (updateData.email && updateData.email !== existingUser.email) {
+       const emailUser = await UserModel.findUserByEmail(updateData.email);
+       if (emailUser && emailUser.id !== userId) {
+         const error = new Error('Email already in use');
+         error.statusCode = 409;
+         throw error;
+       }
+    }
+
+    const updatedUser = await UserModel.updateUser(userId, updateData);
+    const addresses = await UserModel.getUserAddresses(userId);
+    updatedUser.addresses = addresses;
+
+    return updatedUser;
   }
 
-  // Delete user
+  /**
+   * Delete user by ID (Soft delete)
+   */
   static async deleteUser(userId) {
-    try {
-      await UserModel.deleteUser(userId);
-      return {
-        success: true,
-        message: 'User deleted successfully'
-      };
-    } catch (error) {
-      throw new Error(`Failed to delete user: ${error.message}`);
+    const existingUser = await UserModel.findUserById(userId);
+    if (!existingUser) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+      error.statusCode = 404;
+      throw error;
     }
+
+    return await UserModel.updateUser(userId, { status: 'INACTIVE' });
   }
 
-  // Record ride completion
-  static async recordRideCompletion(userId, fare, rating = null) {
-    try {
-      const profile = await ProfileModel.updateRideStats(userId, fare, rating);
-      return {
-        success: true,
-        message: 'Ride recorded successfully',
-        data: profile
-      };
-    } catch (error) {
-      throw new Error(`Failed to record ride: ${error.message}`);
+  /**
+   * Get all users
+   */
+  static async getAllUsers(skip = 0, take = 10) {
+    return await UserModel.findAllUsers(skip, take);
+  }
+
+  /**
+   * Add address
+   */
+  static async addUserAddress(userId, addressData) {
+    const user = await UserModel.findUserById(userId);
+    if (!user) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+      error.statusCode = 404;
+      throw error;
     }
+
+    return await UserModel.createUserAddress(userId, addressData);
+  }
+
+  /**
+   * Get addresses
+   */
+  static async getUserAddresses(userId) {
+    const user = await UserModel.findUserById(userId);
+    if (!user) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return await UserModel.getUserAddresses(userId);
+  }
+  
+  static async getUserByPhone(phone) {
+    const user = await UserModel.findUserByPhone(phone);
+    if (!user) {
+        const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND);
+        error.statusCode = 404;
+        throw error;
+    }
+    const addresses = await UserModel.getUserAddresses(user.id);
+    user.addresses = addresses;
+    return user;
   }
 }
 

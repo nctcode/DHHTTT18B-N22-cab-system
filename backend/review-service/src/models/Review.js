@@ -91,5 +91,34 @@ reviewSchema.pre("save", async function (next) {
   next();
 });
 
+// Post-save middleware to emit event for rating updates (eventual consistency)
+reviewSchema.post("save", async function(doc) {
+  try {
+    // Emit event for User Service and Driver Service to update ratings
+    // This would typically be done via event bus (Kafka/RabbitMQ)
+    const eventPayload = {
+      eventType: 'review.created',
+      timestamp: new Date().toISOString(),
+      data: {
+        reviewId: doc._id,
+        rideId: doc.rideId,
+        passengerId: doc.userId,  // For User Service to update passenger rating
+        driverId: doc.driverId,   // For Driver Service to update driver rating
+        rating: doc.rating,
+        createdAt: doc.createdAt
+      }
+    };
+
+    // TODO: Publish to event bus
+    // await eventBus.publish('review.created', eventPayload);
+    
+    // For now, just log the event (replace with actual event bus in production)
+    console.log('[EVENT] review.created:', JSON.stringify(eventPayload, null, 2));
+  } catch (error) {
+    console.error('[EVENT ERROR] Failed to emit review.created event:', error);
+    // Don't fail the save operation if event emission fails
+  }
+});
+
 const Review = mongoose.model("Review", reviewSchema, "reviews");
 module.exports = Review;

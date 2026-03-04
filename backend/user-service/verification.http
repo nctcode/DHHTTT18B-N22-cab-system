@@ -1,0 +1,63 @@
+### User Service Verification Tests
+
+@baseUrl = http://localhost:3002
+
+### 1. Register User (Create Profile)
+# Expect: 201 Created, returns generated ID
+# ID in body should be IGNORED
+# You can copy the returned "id" for the next steps
+POST {{baseUrl}}/users/register
+Content-Type: application/json
+
+{
+    "id": "this-should-be-ignored",
+    "fullName": "Nguyen Van A",
+    "phone": "0987654321",
+    "email": "nguyenvana@example.com",
+    "role": "PASSENGER",
+    "avatarUrl": "https://example.com/avatar.jpg"
+}
+
+### 2. Verify Username Endpoint is GONE
+# Expect: 404 CANNOT GET
+GET {{baseUrl}}/users/username/someusername
+
+### 3. Get User by ID (Using ID from Step 1)
+@userId = <REPLACE_WITH_ID_FROM_STEP_1>
+GET {{baseUrl}}/users/{{userId}}
+X-User-Id: {{userId}}
+X-User-Role: PASSENGER
+
+### 4. Update User Profile
+PUT {{baseUrl}}/users/{{userId}}
+Content-Type: application/json
+X-User-Id: {{userId}}
+X-User-Role: PASSENGER
+
+{
+    "fullName": "Nguyen Van A Updated",
+    "status": "ACTIVE"
+}
+
+### 5. Add User Address
+POST {{baseUrl}}/users/{{userId}}/addresses
+Content-Type: application/json
+X-User-Id: {{userId}}
+X-User-Role: PASSENGER
+
+{
+    "label": "Home",
+    "address": "123 Main St, Hanoi",
+    "lat": 21.0285,
+    "lng": 105.8542
+}
+
+### 6. Get User Addresses
+GET {{baseUrl}}/users/{{userId}}/addresses
+X-User-Id: {{userId}}
+X-User-Role: PASSENGER
+
+### 7. Verify Phone Check (Admin Only)
+GET {{baseUrl}}/users/phone/0987654321
+X-User-Id: admin-id
+X-User-Role: ADMIN

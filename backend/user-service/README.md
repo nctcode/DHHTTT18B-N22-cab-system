@@ -8,7 +8,7 @@ User Service is responsible for managing user accounts and profiles in the cab b
 
 **PostgreSQL Database with two main tables:**
 
-### user_db table
+### users table
 ```
 id        (uuid, primary key)
 name      (varchar, required)
@@ -21,7 +21,7 @@ updated_at (timestamp)
 ### profile table
 ```
 id                      (uuid, primary key)
-userId                  (uuid, foreign key to user_db)
+userId                  (uuid, foreign key to users)
 bio                     (text, optional)
 dateOfBirth             (timestamp, optional)
 gender                  (varchar, optional) - MALE, FEMALE, OTHER

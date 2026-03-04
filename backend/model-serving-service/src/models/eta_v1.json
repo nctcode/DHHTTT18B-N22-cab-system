@@ -1,0 +1,27 @@
+{
+    "modelType": "eta",
+    "version": "v1",
+    "algorithm": "linear_regression",
+    "description": "ETA prediction: arrival minutes = intercept + coefficients * features",
+    "coefficients": {
+        "intercept": 2.0,
+        "distanceKm": 2.8,
+        "hourOfDay_rushMorning": 1.5,
+        "hourOfDay_rushEvening": 1.8,
+        "hourOfDay_night": -0.5,
+        "isWeekend": -0.3
+    },
+    "tripDurationCoefficients": {
+        "intercept": 3.0,
+        "distanceKm": 3.2,
+        "hourOfDay_rushMorning": 2.0,
+        "hourOfDay_rushEvening": 2.5,
+        "hourOfDay_night": -1.0,
+        "isWeekend": -0.5
+    },
+    "trainedAt": "2026-02-13T00:00:00Z",
+    "metrics": {
+        "trainingSize": 0,
+        "note": "Initial heuristic coefficients based on Ho Chi Minh City traffic patterns"
+    }
+}

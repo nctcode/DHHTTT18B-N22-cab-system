@@ -1,0 +1,33 @@
+# Gateway & Health endpoints (không dùng prefix /api)
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Welcome / API info
+      description: Thông tin gateway và link tới Swagger.
+      responses:
+        '200':
+          description: Welcome message
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Gateway health check
+      description: Kiểm tra API Gateway đang chạy.
+      responses:
+        '200':
+          description: Gateway healthy
+
+  /health/services:
+    get:
+      tags:
+        - Health
+      summary: All services health check
+      description: Kiểm tra trạng thái tất cả microservices (auth, user, driver, booking, ride, payment, pricing, notification, review).
+      responses:
+        '200':
+          description: All services healthy
+        '503':
+          description: Một hoặc nhiều service không healthy

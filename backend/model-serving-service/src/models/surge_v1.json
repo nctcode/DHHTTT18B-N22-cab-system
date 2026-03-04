@@ -1,0 +1,45 @@
+{
+    "modelType": "surge",
+    "version": "v1",
+    "algorithm": "logistic_regression",
+    "description": "Surge pricing prediction: multiplier based on demand/supply ratio, time of day, day of week",
+    "coefficients": {
+        "intercept": 0.0,
+        "demandSupplyRatio": 0.6,
+        "isRushHour": 0.3,
+        "isWeekend": -0.1,
+        "isSpecialEvent": 0.5
+    },
+    "surgeLevels": {
+        "NONE": {
+            "min": 0.0,
+            "max": 1.0,
+            "multiplier": 1.0
+        },
+        "LOW": {
+            "min": 1.0,
+            "max": 1.5,
+            "multiplier": 1.2
+        },
+        "MEDIUM": {
+            "min": 1.5,
+            "max": 2.5,
+            "multiplier": 1.5
+        },
+        "HIGH": {
+            "min": 2.5,
+            "max": 3.5,
+            "multiplier": 1.8
+        },
+        "EXTREME": {
+            "min": 3.5,
+            "max": 999,
+            "multiplier": 2.2
+        }
+    },
+    "trainedAt": "2026-02-13T00:00:00Z",
+    "metrics": {
+        "trainingSize": 0,
+        "note": "Initial heuristic — demand/supply ratio dominates"
+    }
+}

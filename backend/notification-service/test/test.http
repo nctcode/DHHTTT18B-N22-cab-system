@@ -1,0 +1,117 @@
+Endpoint
+POST http://localhost:3008/notifications/send
+Content-Type: application/json
+
+Test 1 – User user-123 (Chuyến đi được xác nhận)
+{
+  "userId": "user-123",
+  "type": "RIDE_STATUS",
+  "title": "Chuyến đi đã được xác nhận",
+  "message": "Tài xế Nguyễn Văn A sẽ đến đón bạn trong 5 phút",
+  "metadata": {
+    "rideId": "ride-001",
+    "driverName": "Nguyễn Văn A",
+    "eta": "5 phút",
+    "vehicle": "Toyota Vios"
+  }
+}
+
+Test 2 – User user-123 (Tài xế đang đến)
+{
+  "userId": "user-123",
+  "type": "RIDE_STATUS",
+  "title": "Tài xế đang trên đường đến",
+  "message": "Tài xế đã bắt đầu di chuyển đến điểm đón",
+  "metadata": {
+    "rideId": "ride-001",
+    "driverLocation": {
+      "lat": 10.762622,
+      "lng": 106.660172
+    }
+  },
+  "isRead": true,
+  "readAt": "2024-01-15T10:30:00Z"
+}
+
+Test 3 – User user-123 (Thanh toán)
+{
+  "userId": "user-123",
+  "type": "PAYMENT",
+  "title": "Thanh toán thành công",
+  "message": "Chuyến đi #RIDE-001 đã được thanh toán thành công 150,000 VND",
+  "metadata": {
+    "rideId": "ride-001",
+    "amount": 150000,
+    "paymentMethod": "VNPay",
+    "transactionId": "txn-001"
+  }
+}
+
+Test 4 – User user-456 (Welcome)
+{
+  "userId": "user-456",
+  "type": "SYSTEM",
+  "title": "Chào mừng đến với CAB Booking",
+  "message": "Cảm ơn bạn đã đăng ký tài khoản!",
+  "metadata": {
+    "welcomeBonus": 50000
+  }
+}
+
+Test 5 – User user-456 (Khuyến mãi)
+{
+  "userId": "user-456",
+  "type": "PROMOTION",
+  "title": "Khuyến mãi đặc biệt",
+  "message": "Giảm 30% cho chuyến đi đầu tiên",
+  "metadata": {
+    "discount": "30%",
+    "code": "WELCOME30",
+    "expires": "2024-12-31"
+  },
+  "isRead": true,
+  "readAt": "2024-01-14T15:45:00Z"
+}
+
+Test 6 – Driver driver-789 (Có chuyến mới)
+{
+  "userId": "driver-789",
+  "type": "RIDE_STATUS",
+  "title": "Có chuyến đi mới",
+  "message": "Bạn có yêu cầu đặt xe từ Quận 1 đến Quận 7",
+  "metadata": {
+    "rideId": "ride-002",
+    "pickup": "Quận 1, TP.HCM",
+    "dropoff": "Quận 7, TP.HCM",
+    "fare": 120000
+  }
+}
+
+Test 7 – Driver driver-789 (Nhận tiền)
+{
+  "userId": "driver-789",
+  "type": "PAYMENT",
+  "title": "Đã nhận thanh toán",
+  "message": "Bạn đã nhận 95,000 VND cho chuyến đi #RIDE-002",
+  "metadata": {
+    "rideId": "ride-002",
+    "amount": 95000,
+    "commission": 25000
+  }
+}
+
+Test API đọc thông báo
+📥 Lấy tất cả thông báo của user
+GET http://localhost:3008/notifications/user/user-123
+
+📥 Chỉ lấy chưa đọc
+GET http://localhost:3008/notifications/user/user-456?unreadOnly=true
+
+3️⃣ Đánh dấu đã đọc
+PUT http://localhost:3008/notifications/{notificationId}/read
+
+
+📌 {notificationId} copy từ response của API GET
+
+4️⃣ Health check
+GET http://localhost:3008/health

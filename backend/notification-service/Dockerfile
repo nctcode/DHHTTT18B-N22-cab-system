@@ -3,14 +3,10 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY package*.json ./
-
-RUN npm install --production
+RUN npm install
 
 COPY . .
 
-EXPOSE 3009
-
-ENV NODE_ENV=production
-ENV PORT=3009
+EXPOSE 3008
 
 CMD ["node", "src/server.js"]

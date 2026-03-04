@@ -1,0 +1,157 @@
+# src/swagger/pricing.yaml
+paths:
+  /api/pricing/calculate:
+    post:
+      tags:
+        - Pricing
+      summary: Calculate ride price
+      description: Tính giá chuyến đi dựa trên khoảng cách, thời gian, loại xe và surge zones
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - distanceKm
+                - vehicleType
+              properties:
+                distanceKm:
+                  type: number
+                  format: float
+                  minimum: 0.1
+                  example: 15.5
+                durationMin:
+                  type: integer
+                  minimum: 0
+                  example: 30
+                vehicleType:
+                  type: string
+                  enum: [BIKE, CAR]
+                  example: "CAR"
+                pickup:
+                  type: object
+                  description: "Pickup location for surge detection"
+                  properties:
+                    lat:
+                      type: number
+                      format: double
+                    lng:
+                      type: number
+                      format: double
+      responses:
+        '200':
+          description: Price calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/pricing/rules:
+    get:
+      tags:
+        - Pricing
+      summary: Get pricing rules
+      description: Lấy các quy tắc tính giá hiện tại
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of pricing rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PricingRule'
+
+components:
+  schemas:
+    PriceResponse:
+      type: object
+      properties:
+        basePrice:
+          type: number
+          example: 10000
+        distancePrice:
+          type: number
+          example: 30000
+        timePrice:
+          type: number
+          example: 15000
+        subtotal:
+          type: number
+          example: 55000
+        minFare:
+          type: number
+          example: 15000
+        finalPrice:
+          type: number
+          example: 55000
+        surgeMultiplier:
+          type: number
+          example: 1.0
+        surgeZone:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+              example: "Tân Sơn Nhất Airport"
+            multiplier:
+              type: number
+              example: 1.5
+        currency:
+          type: string
+          example: "VND"
+
+    PricingRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR]
+        basePrice:
+          type: number
+          example: 10000
+        pricePerKm:
+          type: number
+          example: 2000
+        pricePerMin:
+          type: number
+          example: 500
+        minFare:
+          type: number
+          example: 15000
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

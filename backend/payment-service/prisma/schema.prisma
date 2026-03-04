@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  ride_id        String
+  passenger_id   String
+  driver_id      String?
+  amount         Float
+  payment_method PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  
+  // Saga / Robustness fields
+  retry_count    Int           @default(0)
+  idempotency_key String?      @unique
+  saga_status    SagaStatus?
+  psp_reference  String?
+
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  @@index([ride_id])
+  @@index([passenger_id])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum SagaStatus {
+  STARTED
+  CHARGE_SUCCESS
+  CHARGE_FAILED
+  WALLET_CREDITED
+  COMPENSATED
+  RETRY_EXHAUSTED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+}
+
+model SavedPaymentMethod {
+  id                String   @id @default(uuid())
+  passenger_id      String
+  payment_method_id String   // Stripe pm_xxx
+  last4             String?
+  brand             String?
+  is_default        Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([passenger_id])
+  @@map("saved_payment_methods")
+}

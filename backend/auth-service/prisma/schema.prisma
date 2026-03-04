@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model Account {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  email         String   @unique
+  passwordHash  String
+  role          AccountRole
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  accountId String
+  token     String   @unique
+  expiresAt DateTime
+
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+enum AccountRole {
+  PASSENGER
+  DRIVER
+  ADMIN
+}

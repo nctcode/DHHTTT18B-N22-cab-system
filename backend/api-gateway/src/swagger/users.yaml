@@ -1,0 +1,317 @@
+# src/swagger/users.yaml
+paths:
+  /api/users/health:
+    get:
+      tags:
+        - Health
+      summary: Health check for user service
+      responses:
+        '200':
+          description: User service is healthy
+
+  /api/users/register:
+    post:
+      tags:
+        - Users
+      summary: Register application user (domain profile)
+      security:
+        - BearerAuth: []
+      description: Create user profile after authentication. Call internally by Auth Service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fullName
+                - phone
+              properties:
+                fullName:
+                  type: string
+                  example: "Nguyễn Văn A"
+                phone:
+                  type: string
+                  example: "0901234567"
+                email:
+                  type: string
+                  format: email
+                  nullable: true
+                  example: "nguyenvana@example.com"
+                role:
+                  type: string
+                  enum: [PASSENGER, DRIVER, ADMIN]
+                  default: PASSENGER
+                avatarUrl:
+                  type: string
+                  nullable: true
+                  example: "https://example.com/avatar.jpg"
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error
+        '409':
+          description: Phone number already exists
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User not found
+
+    put:
+      tags:
+        - Users
+      summary: Update user information
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:
+                  type: string
+                  example: "Nguyễn Văn B"
+                phone:
+                  type: string
+                  example: "0987654321"
+                email:
+                  type: string
+                  format: email
+                  example: "updated@example.com"
+                avatarUrl:
+                  type: string
+                  nullable: true
+                  example: "https://example.com/new-avatar.jpg"
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User deleted successfully
+        '404':
+          description: User not found
+
+  /api/users/phone/{phone}:
+    get:
+      tags:
+        - Users
+      summary: Get user by phone number (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: phone
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          description: User not found
+
+  /api/users/{id}/addresses:
+    get:
+      tags:
+        - Users
+      summary: Get user addresses
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Address'
+
+    post:
+      tags:
+        - Users
+      summary: Add new address
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Address'
+      responses:
+        '201':
+          description: Address added successfully
+        '400':
+          description: Validation error
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Get all users with pagination (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: skip
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: take
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+components:
+  schemas:
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [PASSENGER, DRIVER, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        avatar:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      required:
+        - label
+        - address
+        - lat
+        - lng
+      properties:
+        label:
+          type: string
+          example: "Home"
+        address:
+          type: string
+          example: "123 Street, City"
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

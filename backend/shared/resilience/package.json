@@ -1,0 +1,12 @@
+{
+    "name": "shared-resilience",
+    "version": "1.0.0",
+    "description": "Shared resilience patterns for microservices",
+    "main": "index.js",
+    "dependencies": {
+        "opossum": "^8.1.4",
+        "axios": "^1.6.2",
+        "axios-retry": "^4.0.0",
+        "node-cache": "^5.1.2"
+    }
+}

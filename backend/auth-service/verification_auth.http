@@ -1,0 +1,55 @@
+### Auth Service Verification Tests
+
+@baseUrl = http://localhost:3001
+@userServiceUrl = http://localhost:3002
+
+### 1. Register User (Happy Path)
+# This calls Auth Service, which calls User Service
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com",
+    "password": "password123",
+    "fullName": "Test User",
+    "phone": "0912345678",
+    "role": "PASSENGER"
+}
+
+### 2. Login User (Happy Path)
+# Should return accessToken and refreshToken
+# Response also includes User Profile from User Service
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "testuser@example.com",
+    "password": "password123"
+}
+
+### 3. Get Current User (Me)
+# Use accessToken from login response
+@authToken = <REPLACE_WITH_ACCESS_TOKEN>
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+### 4. Refresh Token
+# Use refreshToken from login response
+@refreshToken = <REPLACE_WITH_REFRESH_TOKEN>
+POST {{baseUrl}}/auth/refresh
+Authorization: Bearer {{refreshToken}}
+
+### 5. Logout
+# Use the NEW refreshToken from refresh response (due to rotation)
+@newRefreshToken = <REPLACE_WITH_NEW_REFRESH_TOKEN>
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{newRefreshToken}}
+
+### 6. Verify Logout (Try to refresh again)
+# Should fail (401)
+POST {{baseUrl}}/auth/refresh
+Authorization: Bearer {{newRefreshToken}}
+
+### 7. Helper: Delete User from User Service (Cleanup)
+# If you have admin access or direct DB access via User Service
+DELETE {{userServiceUrl}}/users/<USER_ID>

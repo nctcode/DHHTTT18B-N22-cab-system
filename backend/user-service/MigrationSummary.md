@@ -4,8 +4,8 @@
 
 ### 1. Database Schema Restructured
 - **Old**: Complex multi-table setup (Customer, UserProfile, PaymentMethod, FavoriteLocation, RideHistory)
-- **New**: Simplified two-table structure (user_db, profile)
-  - `user_db`: Core user information (id, name, phone, avatar, created_at)
+- **New**: Simplified two-table structure (users, profile)
+  - `users`: Core user information (id, name, phone, avatar, created_at)
   - `profile`: Extended profile with ride stats and preferences (userId, bio, address, rideCount, etc.)
 
 ### 2. Code Refactoring
@@ -77,9 +77,9 @@ npm run dev
 ```
 
 Service will be available at:
-- Main API: `http://localhost:5003/api/users`
-- Swagger Docs: `http://localhost:5003/api-docs`
-- Health Check: `http://localhost:5003/health`
+- Main API: `http://localhost:3002/api/users`
+- Swagger Docs: `http://localhost:3002/api-docs`
+- Health Check: `http://localhost:3002/health`
 
 ## Testing
 

@@ -1,0 +1,21 @@
+# frontend/docker-compose.yml
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_WS_URL: ws://localhost:3000
+    networks:
+      - cab-network
+    depends_on:
+      - api-gateway
+
+networks:
+  cab-network:
+    external: true

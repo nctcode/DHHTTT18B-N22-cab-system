@@ -1,180 +1,78 @@
-const reviewService = require("../services/reviewService");
-const { validateReview } = require("../utils/validation");
-const logger = require("../utils/logger");
+const reviewService = require('../services/reviewService');
+
+const sendResponse = (res, statusCode, success, message, data = null) => {
+  res.status(statusCode).json({ success, message, data });
+};
 
 class ReviewController {
+
   /**
-   * Create a new review
+   * POST /reviews
+   * Headers: x-user-id, x-user-role
    */
-  async createReview(req, res, next) {
+  async createReview(req, res) {
     try {
-      // Validate request body
-      const { error, value } = validateReview(req.body);
-      if (error) {
-        return res.status(400).json({
-          success: false,
-          message: "Validation error",
-          errors: error.details.map((detail) => detail.message),
-        });
-      }
+      const reviewerId = req.headers['x-user-id'];
+      if (!reviewerId) return sendResponse(res, 401, false, 'Missing x-user-id header');
 
-      const review = await reviewService.createReview(value);
+      const { rideId, targetUserId, rating, comment } = req.body;
 
-      res.status(201).json({
-        success: true,
-        message: "Review created successfully",
-        data: review,
+      const review = await reviewService.createReview({
+        rideId, reviewerId, targetUserId, rating, comment
       });
+
+      sendResponse(res, 201, true, 'Review created', review);
     } catch (error) {
-      if (error.message === "A review already exists for this ride") {
-        return res.status(400).json({
-          success: false,
-          message: error.message,
-        });
-      }
-      logger.error("Create review error:", error);
-      next(error);
+      const status = error.status || 500;
+      const message = error.message || 'Internal Server Error';
+      console.error('[ReviewController]', message);
+      sendResponse(res, status, false, message);
     }
   }
 
   /**
-   * Get review by ID
+   * GET /reviews/ride/:rideId
    */
-  async getReview(req, res, next) {
+  async getByRide(req, res) {
     try {
-      const { id } = req.params;
-      const review = await reviewService.getReviewById(id);
-
-      res.status(200).json({
-        success: true,
-        data: review,
-      });
+      const reviews = await reviewService.getByRideId(req.params.rideId);
+      sendResponse(res, 200, true, 'Ride reviews', reviews);
     } catch (error) {
-      if (error.message === "Review not found") {
-        return res.status(404).json({
-          success: false,
-          message: error.message,
-        });
-      }
-      logger.error(`Get review ${req.params.id} error:`, error);
-      next(error);
+      console.error('[ReviewController]', error.message);
+      sendResponse(res, 500, false, error.message);
     }
   }
 
   /**
-   * Get reviews by driver ID
+   * GET /reviews/user/:userId
    */
-  async getDriverReviews(req, res, next) {
+  async getByUser(req, res) {
     try {
-      const { driverId } = req.params;
-      const page = Math.max(1, parseInt(req.query.page) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
-
-      const result = await reviewService.getReviewsByDriver(
-        driverId,
-        page,
-        limit,
-      );
-
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
+      const result = await reviewService.getByUserId(req.params.userId);
+      sendResponse(res, 200, true, 'User reviews', result);
     } catch (error) {
-      logger.error(`Get driver reviews ${req.params.driverId} error:`, error);
-      next(error);
+      console.error('[ReviewController]', error.message);
+      sendResponse(res, 500, false, error.message);
     }
   }
 
   /**
-   * Get reviews by user ID
+   * GET /reviews/check?rideId=xxx
+   * Uses x-user-id from header as reviewerId
    */
-  async getUserReviews(req, res, next) {
+  async checkReview(req, res) {
     try {
-      const { userId } = req.params;
-      const page = Math.max(1, parseInt(req.query.page) || 1);
-      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+      const reviewerId = req.headers['x-user-id'];
+      if (!reviewerId) return sendResponse(res, 401, false, 'Missing x-user-id header');
 
-      const result = await reviewService.getReviewsByUser(userId, page, limit);
+      const { rideId } = req.query;
+      if (!rideId) return sendResponse(res, 400, false, 'rideId query param required');
 
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
+      const result = await reviewService.checkReview(rideId, reviewerId);
+      sendResponse(res, 200, true, 'Review check', result);
     } catch (error) {
-      logger.error(`Get user reviews ${req.params.userId} error:`, error);
-      next(error);
-    }
-  }
-
-  /**
-   * Get driver average rating
-   */
-  async getDriverAverageRating(req, res, next) {
-    try {
-      const { driverId } = req.params;
-      const result = await reviewService.getDriverAverageRating(driverId);
-
-      res.status(200).json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      logger.error(`Get driver average ${req.params.driverId} error:`, error);
-      next(error);
-    }
-  }
-
-  /**
-   * Delete review
-   */
-  async deleteReview(req, res, next) {
-    try {
-      const { id } = req.params;
-      const result = await reviewService.deleteReview(id);
-
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      if (error.message === "Review not found") {
-        return res.status(404).json({
-          success: false,
-          message: error.message,
-        });
-      }
-      logger.error(`Delete review ${req.params.id} error:`, error);
-      next(error);
-    }
-  }
-
-  /**
-   * Check if user has reviewed a ride
-   */
-  async checkUserReview(req, res, next) {
-    try {
-      const { rideId, userId } = req.query;
-
-      if (!rideId || !userId) {
-        return res.status(400).json({
-          success: false,
-          message: "rideId and userId are required",
-        });
-      }
-
-      const hasReviewed = await reviewService.hasUserReviewedRide(
-        rideId,
-        userId,
-      );
-
-      res.status(200).json({
-        success: true,
-        data: { hasReviewed },
-      });
-    } catch (error) {
-      logger.error("Check user review error:", error);
-      next(error);
+      console.error('[ReviewController]', error.message);
+      sendResponse(res, 500, false, error.message);
     }
   }
 }

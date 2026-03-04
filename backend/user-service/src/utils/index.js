@@ -3,17 +3,14 @@
 // Format customer response
 function formatCustomerResponse(customer) {
   return {
-    customerId: customer.customerId,
-    firstName: customer.firstName,
-    lastName: customer.lastName,
+    id: customer.id,
+    fullName: customer.fullName,
     email: customer.email,
     phone: customer.phone,
-    profilePicture: customer.profilePicture,
-    rideCount: customer.rideCount,
-    totalSpent: customer.totalSpent,
-    averageRating: customer.averageRating,
-    isVerified: customer.isVerified,
-    isActive: customer.isActive,
+    avatarUrl: customer.avatarUrl,
+    role: customer.role,
+    status: customer.status,
+    ratingAvg: customer.ratingAvg,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt
   };
@@ -22,22 +19,17 @@ function formatCustomerResponse(customer) {
 // Format profile response
 function formatProfileResponse(profile) {
   return {
-    userId: profile.userId,
-    bio: profile.bio,
-    profilePicture: profile.profilePicture,
-    dateOfBirth: profile.dateOfBirth,
-    gender: profile.gender,
-    address: profile.address,
-    city: profile.city,
-    state: profile.state,
-    zipCode: profile.zipCode,
-    country: profile.country,
-    verificationStatus: profile.verificationStatus,
-    isPhoneVerified: profile.isPhoneVerified,
-    isEmailVerified: profile.isEmailVerified,
-    lastActiveAt: profile.lastActiveAt,
+    id: profile.id,
+    fullName: profile.fullName,
+    email: profile.email,
+    phone: profile.phone,
+    avatarUrl: profile.avatarUrl,
+    role: profile.role,
+    status: profile.status,
+    ratingAvg: profile.ratingAvg,
     createdAt: profile.createdAt,
-    updatedAt: profile.updatedAt
+    updatedAt: profile.updatedAt,
+    addresses: profile.addresses || [] // Include addresses if available
   };
 }
 

@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model PricingRule {
+  id String @id @default(uuid())
+  vehicle_type String
+  base_fare Float
+  price_per_km Float
+  price_per_min Float
+
+  @@map("pricing_rules")
+}
+
+model SurgeZone {
+  id String @id @default(uuid())
+  area_name String
+  multiplier Float
+  active Boolean
+
+  @@map("surge_zones")
+}
+

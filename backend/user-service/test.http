@@ -1,0 +1,31 @@
+### Health check
+GET http://localhost:5003/api/users/health
+
+### Register user (sau khi auth service đã tạo account)
+POST http://localhost:5003/api/users/register
+Content-Type: application/json
+
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "John Doe",
+  "phone": "+84912345678",
+  "avatar": "https://example.com/avatar.jpg"
+}
+
+### Get user by ID (cần token)
+GET http://localhost:5003/api/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### Update user (cần token)
+PUT http://localhost:5003/api/users/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "John Updated",
+  "phone": "+84987654321"
+}
+
+### Get all users (Admin only - cần token với role ADMIN)
+GET http://localhost:5003/api/users?skip=0&take=10
+Authorization: Bearer ADMIN_JWT_TOKEN_HERE

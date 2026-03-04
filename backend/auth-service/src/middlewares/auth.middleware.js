@@ -1,15 +1,21 @@
-const jwt = require('jsonwebtoken');
-const { secret } = require('../config/jwt');
-// Authentication middleware to verify JWT tokens
+// Authentication middleware - Trusts API Gateway headers
 module.exports = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  // Gateway injects x-user-id and x-user-role
+  const userId = req.headers['x-user-id'];
+  const userRole = req.headers['x-user-role'];
 
-  try {
-    const decoded = jwt.verify(token, secret);
-    req.user = decoded;
-    next();
-  } catch {
-    res.status(401).json({ message: 'Invalid token' });
+  if (!userId) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized: Missing identity headers' 
+    });
   }
+
+  req.user = {
+    id: userId,
+    userId: userId,
+    role: userRole || 'PASSENGER'
+  };
+
+  next();
 };

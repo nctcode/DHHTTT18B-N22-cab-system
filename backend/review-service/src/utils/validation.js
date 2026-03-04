@@ -1,17 +1,10 @@
 const Joi = require("joi");
 
+// Client sends only rideId, rating, comment. userId and driverId come from JWT and Ride.
 const reviewSchema = Joi.object({
   rideId: Joi.string().required().messages({
     "string.empty": "Ride ID is required",
     "any.required": "Ride ID is required",
-  }),
-  userId: Joi.string().required().messages({
-    "string.empty": "User ID is required",
-    "any.required": "User ID is required",
-  }),
-  driverId: Joi.string().required().messages({
-    "string.empty": "Driver ID is required",
-    "any.required": "Driver ID is required",
   }),
   rating: Joi.number().integer().min(1).max(5).required().messages({
     "number.base": "Rating must be a number",

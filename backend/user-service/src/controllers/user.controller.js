@@ -1,191 +1,130 @@
-const { validationResult } = require('express-validator');
 const UserService = require('../services/user.service');
 
-class UserController {
-  // Helper function to convert date string to DateTime
-  static convertToDateTime(dateString) {
-    if (!dateString) return null;
+exports.registerUser = async (req, res) => {
+  try {
+    const user = await UserService.registerUser(req.body);
+    return res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: user
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
 
-    if (dateString instanceof Date) {
-      return dateString;
-    }
+exports.getUser = async (req, res) => {
+  try {
+    const user = await UserService.getUserById(req.params.id);
+    return res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
 
-    if (typeof dateString === 'string') {
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        return date;
+exports.updateUser = async (req, res) => {
+  try {
+    const updatedUser = await UserService.updateUser(req.params.id, req.body);
+    return res.json({
+      success: true,
+      message: 'User updated successfully',
+      data: updatedUser
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    await UserService.deleteUser(req.params.id);
+    return res.json({
+      success: true,
+      message: 'User deactivated successfully'
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { skip, take } = req.query;
+    const result = await UserService.getAllUsers(Number(skip) || 0, Number(take) || 10);
+    return res.json({
+      success: true,
+      data: result.data,
+      pagination: {
+        skip: result.skip,
+        take: result.take,
+        total: result.total
       }
-    }
-
-    return null;
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
   }
+};
 
-  // Register new user
-  static async registerUser(req, res) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      let userData = req.body;
-
-      // Convert dateOfBirth if provided
-      if (userData.dateOfBirth) {
-        userData.dateOfBirth = UserController.convertToDateTime(userData.dateOfBirth);
-        if (!userData.dateOfBirth) {
-          return res.status(400).json({
-            success: false,
-            message: 'Invalid dateOfBirth format. Use YYYY-MM-DD or ISO-8601 format.'
-          });
-        }
-      }
-
-      const result = await UserService.registerUser(userData);
-
-      res.status(201).json(result);
-    } catch (error) {
-      console.error('Register user error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
+exports.getUserByPhone = async (req, res) => {
+  try {
+    const user = await UserService.getUserByPhone(req.params.phone);
+    return res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
   }
+};
 
-  // Get user with profile
-  static async getUserProfile(req, res) {
-    try {
-      const { userId } = req.params;
-
-      const result = await UserService.getUserProfile(userId);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Get user profile error:', error);
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
+exports.addUserAddress = async (req, res) => {
+  try {
+    const address = await UserService.addUserAddress(req.params.id, req.body);
+    return res.json({
+      success: true,
+      message: 'Address added successfully',
+      data: address
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
   }
+};
 
-  // Get user profile details
-  static async getUserProfileDetails(req, res) {
-    try {
-      const { userId } = req.params;
-
-      const result = await UserService.getUserProfileDetails(userId);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Get user profile details error:', error);
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
+exports.getUserAddresses = async (req, res) => {
+  try {
+    const addresses = await UserService.getUserAddresses(req.params.id);
+    return res.json({
+      success: true,
+      data: addresses
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
   }
-
-  // Get user by phone
-  static async getUserByPhone(req, res) {
-    try {
-      const { phone } = req.params;
-
-      const result = await UserService.getUserByPhone(phone);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Get user by phone error:', error);
-      res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  // Get all users
-  static async getAllUsers(req, res) {
-    try {
-      const skip = parseInt(req.query.skip) || 0;
-      const take = parseInt(req.query.take) || 10;
-
-      const result = await UserService.getAllUsers(skip, take);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Get all users error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  // Update user
-  static async updateUser(req, res) {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { userId } = req.params;
-      const updateData = req.body;
-
-      const result = await UserService.updateUser(userId, updateData);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Update user error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  // Delete user
-  static async deleteUser(req, res) {
-    try {
-      const { userId } = req.params;
-
-      const result = await UserService.deleteUser(userId);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Delete user error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  // Record ride completion
-  static async recordRideCompletion(req, res) {
-    try {
-      const { userId } = req.params;
-      const { fare, rating } = req.body;
-
-      if (!fare) {
-        return res.status(400).json({
-          success: false,
-          message: 'Fare is required'
-        });
-      }
-
-      const result = await UserService.recordRideCompletion(userId, fare, rating);
-
-      res.json(result);
-    } catch (error) {
-      console.error('Record ride error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-}
-
-module.exports = UserController;
+};

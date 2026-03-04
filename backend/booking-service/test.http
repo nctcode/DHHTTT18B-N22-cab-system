@@ -1,0 +1,180 @@
+1. 🟢 Health Check
+GET {{base_url}}/health
+{
+  "success": true,
+  "message": "Booking service is healthy",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "database": "connected",
+  "uptime": 1234.56,
+  "environment": "development"
+}
+
+2. 📝 Tạo Booking Mới
+text
+POST {{base_url}}/bookings
+Headers:
+  Content-Type: application/json
+  Authorization: Bearer {{auth_token}}
+Request Body mẫu:
+
+json
+{
+  "pickup": "123 Đường Lê Lợi, Quận 1, TP.HCM",
+  "dropoff": "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+  "estimatedPrice": 50000,
+  "userId": "user_123456789"
+}
+Variations:
+
+json
+// Không có giá ước tính
+{
+  "pickup": "Sân bay Tân Sơn Nhất",
+  "dropoff": "Vincom Center Landmark 81",
+  "userId": "user_987654321"
+}
+
+// Booking dài hơn
+{
+  "pickup": "TP.HCM",
+  "dropoff": "Vũng Tàu",
+  "estimatedPrice": 1000000,
+  "userId": "user_555555555"
+}
+Response mẫu:
+
+json
+{
+  "success": true,
+  "message": "Booking created successfully",
+  "data": {
+    "id": "booking_7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "userId": "user_123456789",
+    "pickup": "123 Đường Lê Lợi, Quận 1, TP.HCM",
+    "dropoff": "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+    "estimatedPrice": 50000,
+    "status": "PENDING",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+Lưu booking ID cho các test sau:
+
+javascript
+// Trong Tests tab của Postman
+const response = pm.response.json();
+pm.environment.set("test_booking_id", response.data.id);
+console.log("Booking ID saved:", response.data.id);
+3. 🔍 Lấy Thông Tin Booking
+text
+GET {{base_url}}/bookings/{{test_booking_id}}
+Headers:
+  Authorization: Bearer {{auth_token}}
+Response mẫu:
+
+json
+{
+  "success": true,
+  "data": {
+    "id": "booking_7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "userId": "user_123456789",
+    "pickup": "123 Đường Lê Lợi, Quận 1, TP.HCM",
+    "dropoff": "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+    "estimatedPrice": 50000,
+    "status": "PENDING",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+4. 📋 Lấy Danh Sách Booking của User
+text
+GET {{base_url}}/bookings/user/{{test_user_id}}
+Headers:
+  Authorization: Bearer {{auth_token}}
+Query Parameters:
+
+?skip=0 (mặc định: 0)
+
+?limit=20 (mặc định: 20, max: 100)
+
+?status=PENDING (PENDING, CONFIRMED, CANCELLED, v.v.)
+
+URL mẫu:
+
+text
+{{base_url}}/bookings/user/user_123456789?limit=5&skip=0
+Response mẫu:
+
+json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "booking_7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "userId": "user_123456789",
+      "pickup": "123 Đường Lê Lợi, Quận 1, TP.HCM",
+      "dropoff": "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+      "estimatedPrice": 50000,
+      "status": "PENDING",
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    },
+    {
+      "id": "booking_8d0f7788-8536-51ef-a55c-f18gd2g01bf8",
+      "userId": "user_123456789",
+      "pickup": "789 Đường Pasteur",
+      "dropoff": "101 Đường Hai Bà Trưng",
+      "estimatedPrice": 75000,
+      "status": "COMPLETED",
+      "createdAt": "2024-01-14T15:45:00.000Z",
+      "updatedAt": "2024-01-14T16:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "skip": 0,
+    "limit": 20,
+    "total": 12,
+    "page": 1,
+    "pages": 2
+  }
+}
+5. ❌ Hủy Booking
+text
+PUT {{base_url}}/bookings/{{test_booking_id}}/cancel
+Headers:
+  Authorization: Bearer {{auth_token}}
+Response mẫu:
+
+json
+{
+  "success": true,
+  "message": "Booking cancelled successfully",
+  "data": {
+    "id": "booking_7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "userId": "user_123456789",
+    "pickup": "123 Đường Lê Lợi, Quận 1, TP.HCM",
+    "dropoff": "456 Đường Nguyễn Huệ, Quận 1, TP.HCM",
+    "estimatedPrice": 50000,
+    "status": "CANCELLED",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:35:00.000Z"
+  }
+}
+6. 📊 Thống Kê Booking của User
+text
+GET {{base_url}}/bookings/user/{{test_user_id}}/stats
+Headers:
+  Authorization: Bearer {{auth_token}}
+Response mẫu:
+
+json
+{
+  "success": true,
+  "data": {
+    "total": 15,
+    "pending": 3,
+    "completed": 10,
+    "cancelled": 2,
+    "totalSpent": 1250000
+  }
+}

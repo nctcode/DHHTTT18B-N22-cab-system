@@ -31,8 +31,8 @@ class NearbyService {
           where: { status: 'ONLINE' },
           attributes: ['id', 'name', 'vehicle_type', 'rating']
         }],
-        having: sequelize.literal(`distance <= ${radius}`),
-        order: [['distance', 'ASC']],
+        where: sequelize.where(sequelize.literal(haversine), '<=', radius),
+        order: sequelize.literal('distance ASC'),
         limit
       });
       

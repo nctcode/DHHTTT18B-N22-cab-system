@@ -1,0 +1,50 @@
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 429ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+📦 Running Prisma migrate...
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "payment_db", schema "public" at "postgres-payment:5432"
+
+2 migrations found in prisma/migrations
+
+Error: P3009
+
+migrate found failed migrations in the target database, new migrations will not be applied. Read more about how to resolve migration issues in a production database: https://pris.ly/d/migrate-resolve
+The `20260222065454_init_saved_payment_methods` migration started at 2026-02-22 18:35:57.020297 UTC failed
+
+
+✅ Starting User Service...
+
+> payment-service@1.0.0 start
+> node src/server.js
+
+EventBus initialized (In-Memory)
+[EventBus] Subscribing to: RideFinished
+[EventBus] Subscribing to: WalletCredited
+[EventBus] Subscribing to: WalletCreditFailed
+[EventBus] Subscribing to: PaymentRetryRequested
+✅ RabbitMQ connected
+[RabbitMQ Payment] Error Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+[EventBus] Subscribing to: PaymentSuccess
+[EventBus] Subscribing to: PaymentFailed
+✅ Payment Service running on port 3006
+[RabbitMQ Payment] Error Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+[RabbitMQ Payment] Connected

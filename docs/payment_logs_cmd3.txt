@@ -1,0 +1,50 @@
+
+
+✅ Starting User Service...
+
+> payment-service@1.0.0 start
+> node src/server.js
+
+EventBus initialized (In-Memory)
+[EventBus] Subscribing to: RideFinished
+[EventBus] Subscribing to: WalletCredited
+[EventBus] Subscribing to: WalletCreditFailed
+[EventBus] Subscribing to: PaymentRetryRequested
+[RabbitMQ Payment] Connected
+✅ RabbitMQ connected
+[EventBus] Subscribing to: PaymentSuccess
+[EventBus] Subscribing to: PaymentFailed
+✅ Payment Service running on port 3006
+[Payment Consumer] Received ride.payment.process: 699fcf4d138adfef8e308cf3
+[EventBus] Publishing: RideFinished {
+  rideId: '699fcf4d138adfef8e308cf3',
+  passengerId: 'e41d0365-35f6-4459-a282-28489ecf357b',
+  driverId: '53ea0053-dc6a-4342-8314-29810d65bcc2',
+  amount: 15500,
+  method: 'CARD'
+}
+[Saga] RideFinished received for ride 699fcf4d138adfef8e308cf3
+[EventBus] Publishing: PaymentStarted {
+  id: 'b2a05929-f005-447a-bc09-db9064a3765c',
+  ride_id: '699fcf4d138adfef8e308cf3',
+  passenger_id: 'e41d0365-35f6-4459-a282-28489ecf357b',
+  driver_id: '53ea0053-dc6a-4342-8314-29810d65bcc2',
+  amount: 15500,
+  payment_method: 'CARD',
+  status: 'PENDING',
+  retry_count: 0,
+  idempotency_key: null,
+  saga_status: 'STARTED',
+  psp_reference: null,
+  created_at: 2026-02-26T04:56:21.272Z,
+  updated_at: 2026-02-26T04:56:21.272Z
+}
+[Stripe/CARD] Charging 15500
+[Retry] Attempt 1 failed. Retrying in 1000ms... Error: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.
+[Stripe] Charge Error: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.
+[Stripe/CARD] Charging 15500
+[Retry] Attempt 2 failed. Retrying in 2000ms... Error: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.
+[Stripe] Charge Error: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.
+[Stripe/CARD] Charging 15500
+[Stripe] Charge Error: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.
+[Saga] Charge failed for b2a05929-f005-447a-bc09-db9064a3765c after retries: The provided PaymentMethod cannot be attached. To reuse a PaymentMethod, you must attach it to a Customer first.

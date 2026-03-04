@@ -1,0 +1,332 @@
+# src/swagger/ride.yaml
+paths:
+  /api/rides:
+    post:
+      tags:
+        - Rides
+      summary: Create a new ride
+      description: Tạo ride mới từ booking. PassengerId lấy từ JWT.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bookingId
+                - pickup
+                - dropoff
+                - vehicleType
+              properties:
+                bookingId:
+                  type: string
+                  example: "507f1f77bcf86cd799439012"
+                pickup:
+                  $ref: '#/components/schemas/Location'
+                dropoff:
+                  $ref: '#/components/schemas/Location'
+                vehicleType:
+                  type: string
+                  enum: [BIKE, CAR]
+                  example: "CAR"
+                estimatedPrice:
+                  type: number
+      responses:
+        '201':
+          description: Ride created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/rides/{id}:
+    get:
+      tags:
+        - Rides
+      summary: Get ride by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ride ID (MongoDB ObjectId)
+      responses:
+        '200':
+          description: Ride details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/rides/{id}/assign:
+    patch:
+      tags:
+        - Rides
+      summary: Assign driver to ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - driverId
+              properties:
+                driverId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Driver assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+
+  /api/rides/{id}/start:
+    patch:
+      tags:
+        - Rides
+      summary: Start the ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ride started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+
+  /api/rides/{id}/complete:
+    patch:
+      tags:
+        - Rides
+      summary: Complete the ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - actualDistanceKm
+                - actualDurationMin
+              properties:
+                actualDistanceKm:
+                  type: number
+                  format: float
+                  minimum: 0.1
+                  example: 15.3
+                actualDurationMin:
+                  type: integer
+                  minimum: 1
+                  example: 32
+      responses:
+        '200':
+          description: Ride completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+
+  /api/rides/{id}/cancel:
+    patch:
+      tags:
+        - Rides
+      summary: Cancel the ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Passenger cancelled"
+      responses:
+        '200':
+          description: Ride cancelled successfully
+
+  /api/rides/passenger/{passengerId}:
+    get:
+      tags:
+        - Rides
+      summary: Get rides by passenger ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: passengerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED]
+      responses:
+        '200':
+          description: List of rides
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ride'
+
+components:
+  schemas:
+    Location:
+      type: object
+      required:
+        - lat
+        - lng
+        - address
+      properties:
+        lat:
+          type: number
+          format: double
+          example: 10.762622
+        lng:
+          type: number
+          format: double
+          example: 106.660172
+        address:
+          type: string
+          example: "Quận 1, TP.HCM"
+
+    Ride:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectId
+          example: "507f1f77bcf86cd799439011"
+        bookingId:
+          type: string
+          example: "507f1f77bcf86cd799439012"
+        passengerId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        driverId:
+          type: string
+          format: uuid
+          nullable: true
+        pickup:
+          $ref: '#/components/schemas/Location'
+        dropoff:
+          $ref: '#/components/schemas/Location'
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR]
+          example: "CAR"
+        status:
+          type: string
+          enum: [PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED]
+          example: "PENDING"
+        actualDistanceKm:
+          type: number
+          format: float
+          nullable: true
+          example: 15.3
+        actualDurationMin:
+          type: integer
+          nullable: true
+          example: 32
+        estimatedPrice:
+          type: number
+        finalPrice:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

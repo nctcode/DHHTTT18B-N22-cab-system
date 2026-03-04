@@ -1,0 +1,74 @@
+{
+    "driverDefaults": {
+        "rating": 4.5,
+        "acceptanceRate": 0.85,
+        "cancellationRate": 0.05,
+        "avgResponseTimeSec": 15,
+        "totalTrips": 0,
+        "onTimeRate": 0.90
+    },
+    "zoneDefaults": {
+        "demandCount": 10,
+        "supplyCount": 8,
+        "avgSurge": 1.0,
+        "peakHours": [
+            7,
+            8,
+            9,
+            17,
+            18,
+            19
+        ]
+    },
+    "tripContext": {
+        "avgSpeedByHour": {
+            "0": 40,
+            "1": 45,
+            "2": 45,
+            "3": 45,
+            "4": 40,
+            "5": 35,
+            "6": 25,
+            "7": 18,
+            "8": 15,
+            "9": 20,
+            "10": 25,
+            "11": 25,
+            "12": 22,
+            "13": 25,
+            "14": 25,
+            "15": 22,
+            "16": 18,
+            "17": 15,
+            "18": 18,
+            "19": 22,
+            "20": 28,
+            "21": 32,
+            "22": 35,
+            "23": 38
+        },
+        "avgDurationByZone": {
+            "default": 20
+        }
+    },
+    "vehicleConfig": {
+        "ECONOMY": {
+            "baseFare": 10000,
+            "pricePerKm": 5000,
+            "pricePerMin": 1000,
+            "capacity": 4
+        },
+        "PREMIUM": {
+            "baseFare": 20000,
+            "pricePerKm": 8000,
+            "pricePerMin": 1500,
+            "capacity": 4
+        },
+        "SUV": {
+            "baseFare": 25000,
+            "pricePerKm": 10000,
+            "pricePerMin": 2000,
+            "capacity": 6
+        }
+    }
+}

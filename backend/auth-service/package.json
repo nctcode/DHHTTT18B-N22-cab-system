@@ -8,11 +8,15 @@
     "start": "node src/server.js"
   },
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "@prisma/client": "^6.19.2",
+    "axios": "^1.13.4",
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.1",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "prisma": "^6.19.2",
+    "redis": "^4.6.8"
   },
   "devDependencies": {
     "nodemon": "^3.0.3"

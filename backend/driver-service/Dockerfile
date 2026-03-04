@@ -1,23 +1,14 @@
 FROM node:18-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN npm install
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-USER nodejs
+RUN chmod +x entrypoint.sh
 
-# Expose port
 EXPOSE 3003
 
-# Start application
-CMD ["node", "src/app.js"]
+ENTRYPOINT ["sh", "./entrypoint.sh"]

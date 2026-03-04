@@ -1,44 +1,539 @@
 version: '3.8'
-
 services:
-  auth-service:
-    build: ./auth-service
-    ports:
-      - "3001:3001"
-    environment:
-      - DATABASE_URL=postgresql://postgres:Thuan2903@postgres:5432/cab_booking_auth
-      - REDIS_URL=redis://redis:6379
-      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - cab-booking-network
-
-  postgres:
+  # ---------- INFRASTRUCTURE SERVICES ----------
+  postgres-auth:
     image: postgres:15-alpine
+    container_name: cab-booking-postgres-auth
+    env_file:
+      - ./backend/auth-service/.env
     environment:
-      - POSTGRES_DB=cab_booking_auth
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=Thuan2903
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres-auth-data:/var/lib/postgresql/data
     networks:
-      - cab-booking-network
+      - cab-network
+
+  postgres-driver:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-driver
+    env_file:
+      - ./backend/driver-service/.env
+    environment:
+      POSTGRES_DB: driver_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-driver-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  postgres-user:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-user
+    env_file:
+      - ./backend/user-service/.env
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Thuan2903
+      AUTH_SERVICE_URL: http://auth-service:3001
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-payment
+    env_file:
+      - ./backend/payment-service/.env
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  postgres-notification:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-notification
+    env_file:
+      - ./backend/notification-service/.env
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  postgres-pricing:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-pricing
+    env_file:
+      - ./backend/pricing-service/.env
+    environment:
+      POSTGRES_DB: pricing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres-pricing-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  postgres-review:
+    image: postgres:15-alpine
+    container_name: cab-booking-postgres-review
+    env_file:
+      - ./backend/review-service/.env
+    environment:
+      POSTGRES_DB: review_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Thuan2903}
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres-review-data:/var/lib/postgresql/data
+    networks:
+      - cab-network
+
+  mongodb:
+    image: mongo:7
+    container_name: cab-booking-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - cab-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes
+    container_name: cab-booking-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
-      - redis_data:/data
+      - redis-data:/data
     networks:
-      - cab-booking-network
+      - cab-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
-volumes:
-  postgres_data:
-  redis_data:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: cab-booking-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672" # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - cab-network
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------- MICROSERVICES ----------
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: cab-booking-api-gateway
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/api-gateway/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3002
+      - DRIVER_SERVICE_URL=http://driver-service:3003
+      - BOOKING_SERVICE_URL=http://booking-service:3004
+      - RIDE_SERVICE_URL=http://ride-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - PRICING_SERVICE_URL=http://pricing-service:3007
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - REVIEW_SERVICE_URL=http://review-service:3009
+      - AI_MATCHING_URL=http://ai-matching-service:4001
+      - AI_ETA_URL=http://ai-eta-service:4002
+      - AI_SURGE_URL=http://ai-surge-service:4003
+      - FEATURE_STORE_URL=http://feature-store-service:4020
+      - MODEL_SERVING_URL=http://model-serving-service:4010
+      - ML_TRAINING_URL=http://ml-training-service:4030
+      - ROUTING_SERVICE_URL=http://routing-service:4040
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      driver-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+      ride-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      pricing-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      review-service:
+        condition: service_started
+      ai-matching-service:
+        condition: service_started
+      ai-eta-service:
+        condition: service_started
+      ai-surge-service:
+        condition: service_started
+      routing-service:
+        condition: service_started
+    networks:
+      - cab-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health/live" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./backend/auth-service/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://postgres:Thuan2903@postgres-auth:5432/auth_db
+    depends_on:
+      postgres-auth:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks:
+      - cab-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  user-service:
+    build:
+      context: ./backend/user-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-user-service
+    ports:
+      - "3002:3002"
+    env_file:
+      - ./backend/user-service/.env
+    depends_on:
+      - postgres-user
+      - redis
+    networks:
+      - cab-network
+
+  driver-service:
+    build:
+      context: ./backend/driver-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-driver-service
+    ports:
+      - "3003:3003"
+    env_file:
+      - ./backend/driver-service/.env
+    depends_on:
+      - postgres-driver
+      - redis
+    networks:
+      - cab-network
+
+  booking-service:
+    build:
+      context: ./backend/booking-service
+      # Dockerfile của bạn đã EXPOSE 3004, ta dùng đúng cổng này
+      dockerfile: Dockerfile
+    container_name: cab-booking-booking-service
+    ports:
+      - "3004:3004"
+    env_file:
+      - ./backend/booking-service/.env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cab-network
+
+  ride-service:
+    build:
+      context: ./backend/ride-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-ride-service
+    ports:
+      - "3005:3005"
+    env_file:
+      - ./backend/ride-service/.env
+    environment:
+      BOOKING_SERVICE_URL: http://booking-service:3004
+      USER_SERVICE_URL: http://user-service:3002
+      DRIVER_SERVICE_URL: http://driver-service:3003
+      PRICING_SERVICE_URL: http://pricing-service:3007
+      AI_ETA_URL: http://ai-eta-service:4002
+      ML_TRAINING_URL: http://ml-training-service:4030
+      ROUTING_SERVICE_URL: http://routing-service:4040
+    depends_on:
+      - mongodb
+      - booking-service
+      - user-service
+      - driver-service
+      - ai-eta-service
+      - routing-service
+    networks:
+      - cab-network
+
+  payment-service:
+    build:
+      context: ./backend/payment-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-payment-service
+    ports:
+      - "3006:3006"
+    env_file:
+      - ./backend/payment-service/.env
+    depends_on:
+      - postgres-payment
+    networks:
+      - cab-network
+
+  pricing-service:
+    build:
+      context: ./backend/pricing-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-pricing-service
+    ports:
+      - "3007:3007"
+    env_file:
+      - ./backend/pricing-service/.env
+    environment:
+      - DATABASE_URL=postgresql://postgres:Thuan2903@postgres-pricing:5432/pricing_db
+    depends_on:
+      - postgres-pricing
+    networks:
+      - cab-network
+
+  notification-service:
+    build:
+      context: ./backend/notification-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-notification-service
+    ports:
+      - "3008:3008"
+    env_file:
+      - ./backend/notification-service/.env
+    depends_on:
+      - postgres-notification
+    networks:
+      - cab-network
+
+  review-service:
+    build:
+      context: ./backend/review-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-review-service
+    ports:
+      - "3009:3009"
+    env_file:
+      - ./backend/review-service/.env
+    depends_on:
+      - postgres-review
+    networks:
+      - cab-network
+
+  # ---------- ML PLATFORM ----------
+  feature-store-service:
+    build:
+      context: ./backend/feature-store-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-feature-store
+    ports:
+      - "4020:4020"
+    env_file:
+      - ./backend/feature-store-service/.env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - cab-network
+
+  model-serving-service:
+    build:
+      context: ./backend/model-serving-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-model-serving
+    ports:
+      - "4010:4010"
+    env_file:
+      - ./backend/model-serving-service/.env
+    networks:
+      - cab-network
+
+  ml-training-service:
+    build:
+      context: ./backend/ml-training-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-ml-training
+    ports:
+      - "4030:4030"
+    env_file:
+      - ./backend/ml-training-service/.env
+    environment:
+      - FEATURE_STORE_URL=http://feature-store-service:4020
+      - MODEL_SERVING_URL=http://model-serving-service:4010
+    volumes:
+      - ml-training-data:/app/src/datasets
+    depends_on:
+      - feature-store-service
+      - model-serving-service
+    networks:
+      - cab-network
+
+  # ---------- AI LAYER ----------
+  ai-matching-service:
+    build:
+      context: ./backend/ai-matching-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-ai-matching
+    ports:
+      - "4001:4001"
+    env_file:
+      - ./backend/ai-matching-service/.env
+    environment:
+      - FEATURE_STORE_URL=http://feature-store-service:4020
+      - MODEL_SERVING_URL=http://model-serving-service:4010
+    depends_on:
+      - feature-store-service
+      - model-serving-service
+    networks:
+      - cab-network
+
+  ai-eta-service:
+    build:
+      context: ./backend/ai-eta-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-ai-eta
+    ports:
+      - "4002:4002"
+    env_file:
+      - ./backend/ai-eta-service/.env
+    environment:
+      - FEATURE_STORE_URL=http://feature-store-service:4020
+      - MODEL_SERVING_URL=http://model-serving-service:4010
+    depends_on:
+      - feature-store-service
+      - model-serving-service
+    networks:
+      - cab-network
+
+  ai-surge-service:
+    build:
+      context: ./backend/ai-surge-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-ai-surge
+    ports:
+      - "4003:4003"
+    env_file:
+      - ./backend/ai-surge-service/.env
+    environment:
+      - FEATURE_STORE_URL=http://feature-store-service:4020
+      - MODEL_SERVING_URL=http://model-serving-service:4010
+    depends_on:
+      - feature-store-service
+      - model-serving-service
+    networks:
+      - cab-network
+
+  routing-service:
+    build:
+      context: ./backend/routing-service
+      dockerfile: Dockerfile
+    container_name: cab-booking-routing-service
+    ports:
+      - "4040:4040"
+    env_file:
+      - ./backend/routing-service/.env
+    networks:
+      - cab-network
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4040/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
-  cab-booking-network:
+  cab-network:
     driver: bridge
+
+volumes:
+  postgres-user-data:
+  postgres-auth-data:
+  postgres-driver-data:
+  postgres-payment-data:
+  postgres-notification-data:
+  postgres-pricing-data:
+  postgres-review-data:
+  mongodb-data:
+  redis-data:
+  rabbitmq-data:
+  ml-training-data:

@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  pricing-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cab-pricing-service
+    restart: unless-stopped
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BASE_PRICE_SEDAN=12000
+      - BASE_PRICE_SUV=18000
+      - BASE_PRICE_LUXURY=30000
+    depends_on:
+      - redis
+    networks:
+      - cab-network
+    volumes:
+      - ./logs:/usr/src/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: cab-pricing-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - cab-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  cab-network:
+    driver: bridge
+
+volumes:
+  redis-data:

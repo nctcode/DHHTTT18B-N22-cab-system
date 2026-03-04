@@ -1,0 +1,17 @@
+{
+    "name": "model-serving-service",
+    "version": "1.0.0",
+    "description": "Model Serving API - loads trained models and serves predictions",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "node src/server.js",
+        "dev": "node src/server.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.1",
+        "express": "^4.18.2",
+        "helmet": "^7.1.0",
+        "morgan": "^1.10.0"
+    }
+}

@@ -1,0 +1,193 @@
+openapi: 3.0.0
+info:
+  title: Booking Service API
+  description: API for managing ride bookings (requests)
+  version: 1.0.0
+
+tags:
+  - name: Bookings
+    description: Manage ride bookings
+
+paths:
+  /api/bookings:
+    post:
+      summary: Create a new booking
+      tags: [Bookings]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pickup
+                - dropoff
+                - vehicleType
+                - estimatedPrice
+              properties:
+                pickup:
+                  $ref: '#/components/schemas/Location'
+                dropoff:
+                  $ref: '#/components/schemas/Location'
+                vehicleType:
+                  type: string
+                  enum: [BIKE, CAR, PREMIUM]
+                  example: BIKE
+                estimatedPrice:
+                  type: number
+                  example: 50000
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid input
+
+  /api/bookings/my:
+    get:
+      summary: Get current user's bookings
+      tags: [Bookings]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+
+  /api/bookings/{id}:
+    get:
+      summary: Get booking details by ID
+      tags: [Bookings]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: Booking ID
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '403':
+          description: Access denied (Not owner or admin)
+        '404':
+          description: Booking not found
+
+  /api/bookings/{id}/cancel:
+    patch:
+      summary: Cancel a booking
+      tags: [Bookings]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Booking cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Cannot cancel booking (wrong status)
+        '403':
+          description: Access denied
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Location:
+      type: object
+      required:
+        - lat
+        - lng
+        - address
+      properties:
+        lat:
+          type: number
+          example: 10.762622
+        lng:
+          type: number
+          example: 106.660172
+        address:
+          type: string
+          example: "123 Nguyen Van Linh, District 7, HCMC"
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "booking_12345"
+        passengerId:
+          type: string
+          description: ID of the passenger (from JWT)
+          example: "user_uuid_123"
+        pickup:
+          $ref: '#/components/schemas/Location'
+        dropoff:
+          $ref: '#/components/schemas/Location'
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR, PREMIUM]
+        estimatedPrice:
+          type: number
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, CANCELLED]
+          example: "PENDING"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

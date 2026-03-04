@@ -1,0 +1,200 @@
+✅ Route calculated: 2237 points, undefinedkm, undefinedmin
+npm error path /app
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c node src/server.js
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-02-23T04_36_40_234Z-debug-0.log
+
+> ride-service@1.0.0 start
+> node src/server.js
+
+✅ MongoDB connected (Ride Service)
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.13:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.13',
+  port: 5672
+}
+🚗 Ride Service running on port 3005
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.13:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.13',
+  port: 5672
+}
+[RabbitMQ] Connected to amqp://guest:guest@rabbitmq:5672
+✅ Route calculated: 21 points, undefinedkm, undefinedmin
+✅ Route calculated: 2250 points, undefinedkm, undefinedmin
+Pricing service unavailable, using fallback fare Request failed with status code 400
+npm error path /app
+npm error command failed
+npm error signal SIGTERM
+npm error command sh -c node src/server.js
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-02-23T05_46_01_307Z-debug-0.log
+
+> ride-service@1.0.0 start
+> node src/server.js
+
+✅ MongoDB connected (Ride Service)
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+🚗 Ride Service running on port 3005
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+[RabbitMQ] Connection failed Error: connect ECONNREFUSED 172.18.0.8:5672
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '172.18.0.8',
+  port: 5672
+}
+[RabbitMQ] Connected to amqp://guest:guest@rabbitmq:5672
+✅ Route calculated: 10 points, undefinedkm, undefinedmin
+✅ Route calculated: 10 points, undefinedkm, undefinedmin
+MongoServerError: E11000 duplicate key error collection: cab_ride.rides index: bookingId_1 dup key: { bookingId: "699fa5b58e23290801fe1fb6" }
+    at InsertOneOperation.handleOk (/app/node_modules/mongodb/lib/operations/insert.js:51:19)
+    at tryOperation (/app/node_modules/mongodb/lib/operations/execute_operation.js:214:34)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async executeOperation (/app/node_modules/mongodb/lib/operations/execute_operation.js:78:16)
+    at async Collection.insertOne (/app/node_modules/mongodb/lib/collection.js:154:16) {
+  errorLabelSet: Set(0) {},
+  errorResponse: {
+    index: 0,
+    code: 11000,
+    errmsg: 'E11000 duplicate key error collection: cab_ride.rides index: bookingId_1 dup key: { bookingId: "699fa5b58e23290801fe1fb6" }',
+    keyPattern: { bookingId: 1 },
+    keyValue: { bookingId: '699fa5b58e23290801fe1fb6' }
+  },
+  index: 0,
+  code: 11000,
+  keyPattern: { bookingId: 1 },
+  keyValue: { bookingId: '699fa5b58e23290801fe1fb6' }
+}
+📤 Published ride.driver_cancelled for ride 699fa5be138adfef8e308c5f
+✅ Route calculated: 17 points, undefinedkm, undefinedmin
+✅ Route calculated: 332 points, undefinedkm, undefinedmin
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Cannot complete ride. Driver is 6656m from dropoff (max 200m)
+    at RideService.completeRide (/app/src/services/ride.service.js:292:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async exports.completeRide (/app/src/controllers/ride.controller.js:193:18)
+Pricing service unavailable, using fallback fare Request failed with status code 400
+✅ Route calculated: 90 points, undefinedkm, undefinedmin
+✅ Route calculated: 356 points, undefinedkm, undefinedmin
+✅ Route calculated: 9 points, undefinedkm, undefinedmin
+📤 Published ride.driver_cancelled for ride 699fae39138adfef8e308c84
+✅ Route calculated: 90 points, undefinedkm, undefinedmin
+📤 Published ride.driver_cancelled for ride 699fb0a6138adfef8e308c8b
+✅ Route calculated: 6 points, undefinedkm, undefinedmin
+✅ Route calculated: 9 points, undefinedkm, undefinedmin
+✅ Route calculated: 10 points, undefinedkm, undefinedmin
+✅ Route calculated: 340 points, undefinedkm, undefinedmin
+✅ Route calculated: 5 points, undefinedkm, undefinedmin
+✅ Route calculated: 343 points, undefinedkm, undefinedmin
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Cannot complete ride. Driver is 8469m from dropoff (max 200m)
+    at RideService.completeRide (/app/src/services/ride.service.js:292:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async exports.completeRide (/app/src/controllers/ride.controller.js:193:18)
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Cannot complete ride. Driver is 8452m from dropoff (max 200m)
+    at RideService.completeRide (/app/src/services/ride.service.js:292:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async exports.completeRide (/app/src/controllers/ride.controller.js:193:18)
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Cannot complete ride. Driver is 8452m from dropoff (max 200m)
+    at RideService.completeRide (/app/src/services/ride.service.js:292:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async exports.completeRide (/app/src/controllers/ride.controller.js:193:18)
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Ride validation failed: paymentMethod: `WALLET` is not a valid enum value for path `paymentMethod`.
+    at ValidationError.inspect (/app/node_modules/mongoose/lib/error/validation.js:52:26)
+    at formatValue (node:internal/util/inspect:805:19)
+    at inspect (node:internal/util/inspect:364:10)
+    at formatWithOptionsInternal (node:internal/util/inspect:2279:40)
+    at formatWithOptions (node:internal/util/inspect:2141:10)
+    at console.value (node:internal/console/constructor:352:14)
+    at console.warn (node:internal/console/constructor:385:61)
+    at handleError (/app/src/controllers/ride.controller.js:19:11)
+    at exports.simulateWalletPayment (/app/src/controllers/ride.controller.js:326:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  errors: {
+    paymentMethod: ValidatorError: `WALLET` is not a valid enum value for path `paymentMethod`.
+        at validate (/app/node_modules/mongoose/lib/schemaType.js:1443:13)
+        at SchemaType.doValidate (/app/node_modules/mongoose/lib/schemaType.js:1427:7)
+        at /app/node_modules/mongoose/lib/document.js:3126:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: [Object],
+      kind: 'enum',
+      path: 'paymentMethod',
+      value: 'WALLET',
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'Ride validation failed'
+}
+✅ Route calculated: 9 points, undefinedkm, undefinedmin
+✅ Route calculated: 340 points, undefinedkm, undefinedmin
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Cannot complete ride. Driver is 8021m from dropoff (max 200m)
+    at RideService.completeRide (/app/src/services/ride.service.js:292:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async exports.completeRide (/app/src/controllers/ride.controller.js:193:18)
+Pricing service unavailable, using fallback fare Request failed with status code 400
+Error: Ride validation failed: paymentMethod: `WALLET` is not a valid enum value for path `paymentMethod`.
+    at ValidationError.inspect (/app/node_modules/mongoose/lib/error/validation.js:52:26)
+    at formatValue (node:internal/util/inspect:805:19)
+    at inspect (node:internal/util/inspect:364:10)
+    at formatWithOptionsInternal (node:internal/util/inspect:2279:40)
+    at formatWithOptions (node:internal/util/inspect:2141:10)
+    at console.value (node:internal/console/constructor:352:14)
+    at console.warn (node:internal/console/constructor:385:61)
+    at handleError (/app/src/controllers/ride.controller.js:19:11)
+    at exports.simulateWalletPayment (/app/src/controllers/ride.controller.js:326:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  errors: {
+    paymentMethod: ValidatorError: `WALLET` is not a valid enum value for path `paymentMethod`.
+        at validate (/app/node_modules/mongoose/lib/schemaType.js:1443:13)
+        at SchemaType.doValidate (/app/node_modules/mongoose/lib/schemaType.js:1427:7)
+        at /app/node_modules/mongoose/lib/document.js:3126:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: [Object],
+      kind: 'enum',
+      path: 'paymentMethod',
+      value: 'WALLET',
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'Ride validation failed'
+}
+✅ Route calculated: 6 points, undefinedkm, undefinedmin
+✅ Route calculated: 344 points, undefinedkm, undefinedmin
+Pricing service unavailable, using fallback fare Request failed with status code 400
+💳 Published ride.payment.process for CARD ride 699fcf4d138adfef8e308cf3

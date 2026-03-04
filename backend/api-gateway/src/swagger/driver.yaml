@@ -1,0 +1,294 @@
+# src/swagger/driver.yaml
+paths:
+  /api/drivers:
+    get:
+      tags:
+        - Drivers
+      summary: Get all drivers with filters (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: skip
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: take
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: List of drivers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Driver'
+
+    post:
+      tags:
+        - Drivers
+      summary: Create new driver profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vehicle_type
+                - vehicle_plate
+                - current_lat
+                - current_lng
+              properties:
+                vehicle_type:
+                  type: string
+                  enum: [BIKE, CAR]
+                  example: "CAR"
+                vehicle_plate:
+                  type: string
+                  example: "51G-12345"
+                current_lat:
+                  type: number
+                  format: double
+                  example: 10.762622
+                current_lng:
+                  type: number
+                  format: double
+                  example: 106.660172
+      responses:
+        '201':
+          description: Driver created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+        '400':
+          description: Validation error
+
+  /api/drivers/available:
+    get:
+      tags:
+        - Drivers
+      summary: List available drivers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of available drivers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Driver'
+
+  /api/drivers/{id}:
+    get:
+      tags:
+        - Drivers
+      summary: Get driver by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Driver details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+        '404':
+          description: Driver not found
+
+    put:
+      tags:
+        - Drivers
+      summary: Update driver information
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicle_type:
+                  type: string
+                  enum: [BIKE, CAR]
+                vehicle_plate:
+                  type: string
+      responses:
+        '200':
+          description: Driver updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+
+    delete:
+      tags:
+        - Drivers
+      summary: Delete driver (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Driver deleted successfully
+
+  /api/drivers/{id}/status:
+    patch:
+      tags:
+        - Drivers
+      summary: Update driver availability
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - is_available
+              properties:
+                is_available:
+                  type: boolean
+      responses:
+        '200':
+          description: Status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+
+  /api/drivers/{id}/location:
+    patch:
+      tags:
+        - Drivers
+      summary: Update driver location
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current_lat
+                - current_lng
+              properties:
+                current_lat:
+                  type: number
+                  format: double
+                current_lng:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: Location updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+
+components:
+  schemas:
+    DriverResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Driver'
+
+    Driver:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        vehicle_type:
+          type: string
+          enum: [BIKE, CAR]
+        vehicle_plate:
+          type: string
+        is_available:
+          type: boolean
+        current_lat:
+          type: number
+          format: double
+        current_lng:
+          type: number
+          format: double
+        rating_avg:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

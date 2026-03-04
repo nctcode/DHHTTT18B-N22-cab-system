@@ -1,0 +1,23 @@
+{
+    "modelType": "matching",
+    "version": "v1",
+    "algorithm": "weighted_linear_scoring",
+    "description": "Driver matching model: scores drivers based on distance, rating, acceptance rate, cancellation rate, and response time",
+    "weights": {
+        "distanceScore": -0.35,
+        "ratingScore": 0.30,
+        "acceptanceRateScore": 0.15,
+        "cancellationRateScore": -0.10,
+        "responseTimeScore": -0.10
+    },
+    "normalization": {
+        "maxDistanceKm": 10,
+        "minRating": 1,
+        "maxRating": 5
+    },
+    "trainedAt": "2026-02-13T00:00:00Z",
+    "metrics": {
+        "trainingSize": 0,
+        "note": "Initial heuristic weights — will be refined by ML Training service"
+    }
+}
