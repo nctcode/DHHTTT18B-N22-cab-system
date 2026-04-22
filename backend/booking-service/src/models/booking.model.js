@@ -43,9 +43,15 @@ const BookingSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
+  idempotencyKey: {
+    type: String,
+    unique: true,
+    sparse: true,   // allow null but enforce uniqueness when present
+    index: true
+  },
   status: { 
     type: String, 
-    enum: ['PENDING', 'SEARCHING', 'MATCHED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND'], 
+    enum: ['PENDING', 'SEARCHING', 'MATCHED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND', 'FAILED', 'PAYMENT_FAILED'], 
     default: 'PENDING',
     index: true
   },
@@ -67,6 +73,7 @@ const BookingSchema = new mongoose.Schema({
   candidateDrivers: [CandidateDriverSchema],
   currentOfferIndex: { type: Number, default: -1 },
   offerExpiresAt: Date,
+  failureReason: { type: String, default: null },
   route: {
     distanceKm: Number,
     durationMin: Number,

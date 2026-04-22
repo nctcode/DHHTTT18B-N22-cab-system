@@ -59,10 +59,16 @@ exports.register = async (userData) => {
   } catch (err) {
     console.error('Registration error:', err.message);
 
-    // TODO: Compensating transaction - if auth account creation failed, 
-    // we should ideally delete the user from User Service to maintain consistency.
+    // ── COMPENSATION: Delete orphaned user from User Service ──
     if (userId) {
-       console.error(`[CRITICAL] Orphaned user created in User Service: ${userId}. Compensation required.`);
+       console.error(`[COMPENSATION] Auth account creation failed. Cleaning up orphaned user ${userId}...`);
+       try {
+         await UserClient.deleteUser(userId);
+         console.log(`[COMPENSATION] ✅ Orphaned user ${userId} deleted successfully`);
+       } catch (cleanupErr) {
+         // Log critical error but don't mask the original error
+         console.error(`[COMPENSATION] ❌ CRITICAL: Failed to delete orphaned user ${userId}. Manual cleanup required.`, cleanupErr.message);
+       }
     }
 
     throw err;

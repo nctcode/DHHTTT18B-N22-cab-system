@@ -2,6 +2,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const services = require('../config/services.config');
 const { verifyToken } = require('../middlewares/auth.middleware');
+const { circuitBreakerMiddleware } = require('../middlewares/circuitBreaker.middleware');
 
 const router = express.Router();
 router.use(verifyToken);
@@ -22,5 +23,5 @@ const notificationProxy = createProxyMiddleware({
   }
 });
 
-router.use('/', notificationProxy);
+router.use('/', circuitBreakerMiddleware('notification-service'), notificationProxy);
 module.exports = router;

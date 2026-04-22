@@ -83,6 +83,18 @@ async function startServer() {
     await prisma.$connect();
     console.log('Prisma connected to Database');
 
+    // Initialize RabbitMQ
+    const rabbitmq = require('./messaging/rabbitmq');
+    const { startConsumers } = require('./messaging/consumers');
+    
+    // Register consumers as reconnect callback BEFORE connecting
+    // This ensures consumers start even if initial connect fails and retries
+    rabbitmq.setOnReconnect(startConsumers);
+    
+    await rabbitmq.connect();
+    await startConsumers();
+    console.log('RabbitMQ connected and consumers started');
+
     app.listen(PORT, () => {
       console.log(`Driver Service running on port ${PORT}`);
     });
@@ -95,6 +107,10 @@ async function startServer() {
 // Handle shutdown
 process.on('SIGTERM', async () => {
   await prisma.$disconnect();
+  try {
+    const rabbitmq = require('./messaging/rabbitmq');
+    if (rabbitmq.connection) await rabbitmq.connection.close();
+  } catch (err) {}
   process.exit(0);
 });
 

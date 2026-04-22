@@ -1,0 +1,24 @@
+{
+  "name": "cab-system-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Cab Booking System",
+  "scripts": {
+    "test": "jest --verbose --forceExit --detectOpenHandles",
+    "test:level1": "jest level_1_adaptive --verbose --forceExit --detectOpenHandles",
+    "test:level2": "jest level_2_adaptive --verbose --forceExit --detectOpenHandles",
+    "test:level3": "jest level_3_adaptive --verbose --forceExit --detectOpenHandles",
+    "test:ci": "jest --ci --verbose --forceExit --detectOpenHandles"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "verbose": true
+  }
+}

@@ -499,7 +499,11 @@ exports.arriveRide = async (req, res) => {
 exports.getByPassenger = async (req, res) => {
   try {
     const rides = await rideService.getRidesByPassenger(req.params.passengerId, req.user);
-    sendResponse(res, 200, true, "Passenger rides", rides);
+    
+    // Enrich completed rides with review data
+    const enrichedRides = await enrichRidesWithReviews(rides);
+    
+    sendResponse(res, 200, true, "Passenger rides", enrichedRides);
   } catch (error) {
     handleError(res, error);
   }
@@ -508,11 +512,54 @@ exports.getByPassenger = async (req, res) => {
 exports.getByDriver = async (req, res) => {
   try {
     const rides = await rideService.getRidesByDriver(req.params.driverId, req.user);
-    sendResponse(res, 200, true, "Driver rides", rides);
+    
+    // Enrich completed rides with review data
+    const enrichedRides = await enrichRidesWithReviews(rides);
+    
+    sendResponse(res, 200, true, "Driver rides", enrichedRides);
   } catch (error) {
     handleError(res, error);
   }
 };
+
+/**
+ * Helper: Fetch reviews from review-service and attach to completed rides
+ */
+async function enrichRidesWithReviews(rides) {
+  const REVIEW_SERVICE_URL = process.env.REVIEW_SERVICE_URL || 'http://review-service:3009';
+  
+  const enriched = await Promise.all(
+    rides.map(async (ride) => {
+      const rideObj = ride.toObject ? ride.toObject() : { ...ride };
+      
+      if (rideObj.status === 'COMPLETED') {
+        try {
+          const rideId = rideObj._id?.toString() || rideObj.id;
+          const reviewResp = await axios.get(`${REVIEW_SERVICE_URL}/reviews/ride/${rideId}`, {
+            timeout: 3000
+          });
+          const reviews = reviewResp.data?.data || [];
+          if (reviews.length > 0) {
+            // Attach the first review (passenger → driver or driver → passenger)
+            rideObj.review = {
+              rating: reviews[0].rating,
+              comment: reviews[0].comment,
+              reviewerId: reviews[0].reviewerId,
+              targetUserId: reviews[0].targetUserId,
+              createdAt: reviews[0].createdAt
+            };
+          }
+        } catch (e) {
+          // Silently skip if review service unavailable
+        }
+      }
+      
+      return rideObj;
+    })
+  );
+  
+  return enriched;
+}
 
 // ── AI ETA Prediction ──
 exports.getETA = async (req, res) => {

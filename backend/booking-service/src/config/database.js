@@ -16,6 +16,7 @@ class Database {
         useUnifiedTopology: true,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
+        family: 4, // Force IPv4, helps with 'getaddrinfo EAI_AGAIN mongodb' in Node.js 17+ on Docker
         dbName: process.env.MONGODB_NAME || 'cab_booking'
       });
       

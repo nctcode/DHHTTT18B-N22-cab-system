@@ -23,8 +23,29 @@ class BookingService {
    */
   async createBooking(passengerId, data) {
     console.log('[BOOKING SERVICE] createBooking input payload:', JSON.stringify(data));
+
+    // ── IDEMPOTENCY CHECK ──
+    // Time bucket: 60-second window to catch double-tap, but allow re-booking same route later
+    const timeBucket = Math.floor(Date.now() / 60000);
+    const idempotencyKey = data.idempotencyKey || 
+      `${passengerId}_${data.pickup?.lat?.toFixed(4)}_${data.pickup?.lng?.toFixed(4)}_${data.dropoff?.lat?.toFixed(4)}_${data.dropoff?.lng?.toFixed(4)}_${timeBucket}`;
+
+    // Check for any active booking from this passenger with same route (within last 60 seconds)
+    const recentDuplicate = await Booking.findOne({
+      passengerId,
+      idempotencyKey,
+      status: { $in: ['PENDING', 'SEARCHING', 'MATCHED', 'CONFIRMED', 'IN_PROGRESS'] },
+      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }  // within 60s
+    });
+
+    if (recentDuplicate) {
+      console.log(`[IDEMPOTENCY] Duplicate booking detected for passenger ${passengerId}, returning existing booking ${recentDuplicate._id}`);
+      return recentDuplicate;
+    }
+
     const booking = new Booking({
       passengerId,
+      idempotencyKey,
       pickup: data.pickup,
       dropoff: data.dropoff,
       vehicleType: data.vehicleType,

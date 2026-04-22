@@ -86,10 +86,16 @@ const checkPatterns = (value, patterns, threatType) => {
 /**
  * Recursively scan object for malicious patterns
  */
-const scanObject = (obj, path = '') => {
+const scanObject = (obj, path = '', depth = 0) => {
   const threats = [];
 
+  // Limit scan depth to avoid scanning deeply nested geodata arrays
+  if (depth > 5) return threats;
+
   if (typeof obj === 'string') {
+    // Skip pure numeric strings (coordinates, IDs, etc.)
+    if (/^[\d.\-,\s]+$/.test(obj)) return threats;
+
     // Check SQL Injection
     let threat = checkPatterns(obj, SQL_INJECTION_PATTERNS, 'SQL_INJECTION');
     if (threat) {
@@ -118,12 +124,16 @@ const scanObject = (obj, path = '') => {
       return threats;
     }
   } else if (Array.isArray(obj)) {
+    // Skip arrays of numbers (polyline coordinates, etc.)
+    if (obj.every(item => typeof item === 'number' || (Array.isArray(item) && item.every(n => typeof n === 'number')))) {
+      return threats;
+    }
     obj.forEach((item, index) => {
-      threats.push(...scanObject(item, `${path}[${index}]`));
+      threats.push(...scanObject(item, `${path}[${index}]`, depth + 1));
     });
   } else if (obj !== null && typeof obj === 'object') {
     Object.keys(obj).forEach(key => {
-      threats.push(...scanObject(obj[key], path ? `${path}.${key}` : key));
+      threats.push(...scanObject(obj[key], path ? `${path}.${key}` : key, depth + 1));
     });
   }
 

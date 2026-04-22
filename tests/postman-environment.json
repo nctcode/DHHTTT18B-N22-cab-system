@@ -1,0 +1,89 @@
+{
+  "id": "cab-system-env-local",
+  "name": "CAB System – Local/Staging",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "enabled": true,
+      "description": "API Gateway base URL"
+    },
+    {
+      "key": "gatewayPort",
+      "value": "3000",
+      "enabled": true
+    },
+    {
+      "key": "authServiceUrl",
+      "value": "http://localhost:3001",
+      "enabled": true
+    },
+    {
+      "key": "bookingServiceUrl",
+      "value": "http://localhost:3004",
+      "enabled": true
+    },
+    {
+      "key": "driverServiceUrl",
+      "value": "http://localhost:3003",
+      "enabled": true
+    },
+    {
+      "key": "pricingServiceUrl",
+      "value": "http://localhost:3007",
+      "enabled": true
+    },
+    {
+      "key": "notificationServiceUrl",
+      "value": "http://localhost:3009",
+      "enabled": true
+    },
+    {
+      "key": "aiEtaUrl",
+      "value": "http://localhost:4002",
+      "enabled": true
+    },
+    {
+      "key": "aiMatchingUrl",
+      "value": "http://localhost:4001",
+      "enabled": true
+    },
+    {
+      "key": "aiSurgeUrl",
+      "value": "http://localhost:4003",
+      "enabled": true
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "enabled": true,
+      "description": "Set automatically by login/register test"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "driverId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

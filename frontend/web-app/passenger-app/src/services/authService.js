@@ -30,7 +30,23 @@ export const authService = {
         id: result.data?.userId || null,
         email: result.data?.email || email,
         role: result.data?.role || 'PASSENGER',
+        name: result.data?.fullName || null,
+        phone: result.data?.phone || null,
       };
+
+      // Fetch full profile from user-service to get name/phone
+      try {
+        if (user.id) {
+          const profileRes = await api.get(`/api/users/${user.id}`);
+          const profile = profileRes.data?.data || profileRes.data;
+          if (profile) {
+            user.name = profile.fullName || profile.name || user.name;
+            user.phone = profile.phone || user.phone;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch user profile:', e.message);
+      }
 
       localStorage.setItem('user', JSON.stringify(user));
 

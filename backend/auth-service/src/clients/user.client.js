@@ -35,6 +35,24 @@ class UserClient {
   }
 
   /**
+   * Delete user by ID (used for compensation/rollback)
+   */
+  static async deleteUser(userId) {
+    try {
+      const response = await axios.delete(`${USER_SERVICE_URL}/users/${userId}`, {
+        timeout: 5000
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log(`[UserClient] User ${userId} already deleted or not found`);
+        return null;
+      }
+      this.handleError(error, 'Error deleting user from User Service');
+    }
+  }
+
+  /**
    * Handle Axios errors consistently
    */
   static handleError(error, contextMessage) {

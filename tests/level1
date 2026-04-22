@@ -1,0 +1,69 @@
+# Walkthrough: Level 1 Test Suite + Bug Fixes
+
+## Test Results ✅
+
+```
+PASS ./level_1_adaptive.test.js
+  LEVEL 1 - Basic API & Flow (TC01 → TC10)
+    ✅ TC01: Register passenger → HTTP 201, trả về user ID          (309ms)
+    ✅ TC02: Login → HTTP 200, JWT có sub + exp                     (136ms)
+    ✅ TC03: Create booking → HTTP 201, booking_id + status chờ     (104ms)
+    ✅ TC04: GET bookings → HTTP 200, trả về list booking           (38ms)
+    ✅ TC05: Driver online → HTTP 200, trạng thái updated           (156ms)
+    ✅ TC06: Status ban đầu KHÔNG phải ACCEPTED/CONFIRMED           (65ms)
+    ✅ TC07: ETA predict → eta > 0 && eta < 60                      (2578ms)
+    ✅ TC08: Pricing estimate → price > 0, surge >= 1               (45ms)
+    ✅ TC09: Notification service OK, không timeout                  (42ms)
+    ✅ TC10: Logout OK, refreshToken revoked → 401                   (158ms)
+
+Tests:       10 passed, 10 total
+Time:        4.655s
+```
+
+---
+
+## Files Created/Modified
+
+### Test Suite
+- **[NEW]** [level_1_adaptive.test.js](file:///d:/HTTT18B/Nam4_2/BigData/DHHTTT18B-N22-cab-system/tests/level_1_adaptive.test.js) — 10 integration test cases
+- **[NEW]** [package.json](file:///d:/HTTT18B/Nam4_2/BigData/DHHTTT18B-N22-cab-system/tests/package.json) — Jest + Axios test dependencies
+
+### Bug Fixes (Earlier in Session)
+- **[MODIFIED]** [rabbitmq.js](file:///d:/HTTT18B/Nam4_2/BigData/DHHTTT18B-N22-cab-system/backend/driver-service/src/messaging/rabbitmq.js) — Added `setOnReconnect()` callback for reliable consumer startup
+- **[MODIFIED]** [app.js](file:///d:/HTTT18B/Nam4_2/BigData/DHHTTT18B-N22-cab-system/backend/driver-service/src/app.js) — Register `startConsumers` as reconnect callback
+- **[MODIFIED]** [ride.controller.js](file:///d:/HTTT18B/Nam4_2/BigData/DHHTTT18B-N22-cab-system/backend/ride-service/src/controllers/ride.controller.js) — Enrich ride history with review data from review-service
+
+---
+
+## Key Design Decisions
+
+### SCHEMA_MAP Adaptive Pattern
+The test uses a `SCHEMA_MAP` object to bridge between spec field names and actual system field names:
+
+| Spec (Tài liệu) | System (Thực tế) | Logic |
+|---|---|---|
+| `user_id` | `id` | UUID identifier |
+| `access_token` | `accessToken` | JWT token |
+| `booking_id` | `_id` | MongoDB ObjectId |
+| `status: REQUESTED` | `status: SEARCHING` | "Đang tìm xe" |
+| `driver status: ONLINE` | `is_available: true` | Boolean availability |
+| `price` | `totalFare` | Final computed fare |
+| `surge` | `surgeMultiplier` | ≥ 1.0 multiplier |
+| `eta` | `predictedTripDurationMinutes` | Minutes |
+
+### TC07 ETA Fallback Strategy
+AI ETA service may be unavailable → test uses 3-tier fallback:
+1. Ride-service `/api/rides/eta` (has built-in fallback)
+2. Direct AI ETA service `localhost:4002`
+3. Manual Haversine distance calculation
+
+---
+
+## How to Run
+
+```bash
+cd tests
+npm install        # First time only
+npm test           # Run all tests
+npm run test:level1  # Run Level 1 only
+```

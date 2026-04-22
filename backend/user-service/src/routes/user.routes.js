@@ -2,7 +2,7 @@ const express = require('express');
 const { param, body, query } = require('express-validator');
 const UserController = require('../controllers/user.controller');
 const { gatewayAuth } = require('../middleware/gateway.middleware');
-const { allowAdminOnly, allowSelfOrAdmin } = require('../middleware/role.middleware');
+const { allowAdminOnly, allowSelfOrAdmin, allowSelfOrAdminOrDriver } = require('../middleware/role.middleware');
 const validate = require('../middleware/validate.middleware');
 
 const router = express.Router();
@@ -51,10 +51,10 @@ router.get(
   UserController.getUserByPhone
 );
 
-// Get user by ID (Self or Admin)
+// Get user by ID (Self, Admin, or Driver)
 router.get(
   '/:id',
-  allowSelfOrAdmin,
+  allowSelfOrAdminOrDriver,
   UserController.getUser
 );
 

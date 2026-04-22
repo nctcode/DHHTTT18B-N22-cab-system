@@ -7,8 +7,10 @@ const config = {
   },
   exchanges: {
     rideEvents: 'ride.events',
-    paymentEvents: 'payment.events'
-  }
+    paymentEvents: 'payment.events',
+    deadLetter: 'dlx.exchange',
+  },
+  maxRetries: 3,
 };
 
 let channel = null;
@@ -23,8 +25,14 @@ const connect = async () => {
       
       await channel.assertExchange(config.exchanges.rideEvents, 'topic', { durable: true });
       await channel.assertExchange(config.exchanges.paymentEvents, 'topic', { durable: true });
+
+      // Dead Letter Exchange + Queue
+      await channel.assertExchange(config.exchanges.deadLetter, 'topic', { durable: true });
+      await channel.assertQueue('dlq.all', { durable: true });
+      await channel.bindQueue('dlq.all', config.exchanges.deadLetter, '#');
       
       console.log('[RabbitMQ Payment] Connected');
+      console.log('[RabbitMQ Payment] Dead Letter Queue configured');
       connected = true;
       
       connection.on('close', () => {
@@ -40,14 +48,34 @@ const connect = async () => {
 
 const subscribe = async (exchange, key, queue, handler) => {
   if (!channel) return;
-  await channel.assertQueue(queue, { durable: true });
+  await channel.assertQueue(queue, { 
+    durable: true,
+    arguments: {
+      'x-dead-letter-exchange': config.exchanges.deadLetter,
+      'x-dead-letter-routing-key': `dlq.${queue}`,
+    }
+  });
   await channel.bindQueue(queue, exchange, key);
   channel.consume(queue, async (msg) => {
     if (msg) {
+      try {
         await handler(JSON.parse(msg.content.toString()));
         channel.ack(msg);
+      } catch (err) {
+        const deaths = msg.properties.headers?.['x-death'] || [];
+        const retryCount = deaths.length > 0 ? deaths[0].count || 0 : 0;
+        
+        if (retryCount < config.maxRetries) {
+          console.warn(`[RabbitMQ Payment] Processing failed (attempt ${retryCount + 1}/${config.maxRetries}), requeueing: ${queue}`, err.message);
+          channel.nack(msg, false, true);
+        } else {
+          console.error(`[RabbitMQ Payment] ❌ Max retries reached for ${queue}. Sending to DLQ.`, err.message);
+          channel.nack(msg, false, false);
+        }
+      }
     }
   });
+  console.log(`[RabbitMQ Payment] Subscribed to ${queue} (with DLQ support)`);
 };
 
 const publish = async (exchange, key, data) => {

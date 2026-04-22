@@ -88,8 +88,16 @@ export default function Login() {
                 </button>
             </form>
 
+            {/* Register link */}
+            <p className="relative z-10 text-emerald-200/60 text-sm mt-6">
+                Chưa có tài khoản?{' '}
+                <a href="/register" className="text-emerald-300 font-medium hover:underline">
+                    Đăng ký tài xế
+                </a>
+            </p>
+
             {/* Footer */}
-            <p className="relative z-10 text-emerald-200/40 text-xs mt-8">
+            <p className="relative z-10 text-emerald-200/40 text-xs mt-4">
                 CabGo Driver App © 2026
             </p>
         </div>

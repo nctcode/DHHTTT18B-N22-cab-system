@@ -82,6 +82,13 @@ const RideSchema = new mongoose.Schema({
     default: 'UNPAID'
   },
 
+  // Review data (denormalized from review-service via events)
+  review: {
+    rating: { type: Number, min: 1, max: 5, default: null },
+    comment: { type: String, default: null },
+    createdAt: { type: Date, default: null }
+  },
+
   // Timestamps
   createdAt: { 
     type: Date, 

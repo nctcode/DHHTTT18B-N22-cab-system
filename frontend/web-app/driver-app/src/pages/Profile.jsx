@@ -16,37 +16,43 @@ export default function Profile() {
 
     useEffect(() => {
         const loadProfiles = async () => {
+            // Fetch basic user profile for name and email
             try {
-                // Fetch basic user profile for name and email
                 const userRes = await api.get(`/api/users/${user.id}`);
                 if (userRes.data?.data) {
                     setUserProfile(userRes.data.data);
                 }
+            } catch (err) {
+                console.error("Error loading user profile", err);
+            }
 
-                // Fetch driver profile for vehicle info and rating
+            // Fetch driver profile for vehicle info and rating
+            try {
                 const driverRes = await driverService.getMyProfile();
                 const dProfile = driverRes?.data || driverRes;
                 setDriverProfile(dProfile);
-
-                // Fetch ride history for stats
-                if (dProfile?.id) {
-                    const ridesRes = await api.get(`/api/rides/driver/${dProfile.id}`);
-                    const rides = ridesRes.data?.data || ridesRes.data || [];
-
-                    const completedRides = rides.filter(r => r.status === 'COMPLETED');
-                    const earnings = completedRides.reduce((sum, ride) => sum + (Number(ride.finalFare) || 0), 0);
-
-                    setStats({
-                        totalTrips: completedRides.length,
-                        totalEarnings: earnings
-                    });
-                }
             } catch (err) {
-                console.error("Error loading profile data", err);
+                console.error("Error loading driver profile", err);
                 toast.error('Không thể tải thông tin hồ sơ');
-            } finally {
-                setLoading(false);
             }
+
+            // Fetch ride history for stats — use user.id (auth userId), not driverProfile.id
+            try {
+                const ridesRes = await api.get(`/api/rides/driver/${user.id}`);
+                const rides = ridesRes.data?.data || ridesRes.data || [];
+
+                const completedRides = rides.filter(r => r.status === 'COMPLETED');
+                const earnings = completedRides.reduce((sum, ride) => sum + (Number(ride.finalFare) || 0), 0);
+
+                setStats({
+                    totalTrips: completedRides.length,
+                    totalEarnings: earnings
+                });
+            } catch (err) {
+                console.error("Error loading ride stats", err);
+            }
+
+            setLoading(false);
         };
 
         if (user) {

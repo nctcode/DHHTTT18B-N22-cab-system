@@ -12,6 +12,8 @@ const notificationRoutes = require('./notification.routes');
 const reviewRoutes = require('./review.routes');
 const aiRoutes = require('./ai.routes');
 
+const { getAllBreakerStats } = require('../middlewares/circuitBreaker.middleware');
+
 const router = express.Router();
 
 // Health check endpoint
@@ -21,6 +23,15 @@ router.get('/health', (req, res) => {
     message: 'API Gateway is healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+  });
+});
+
+// Circuit Breaker monitoring endpoint
+router.get('/circuit-breakers', (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: getAllBreakerStats(),
+    timestamp: new Date().toISOString(),
   });
 });
 

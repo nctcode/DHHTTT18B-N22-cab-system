@@ -180,7 +180,13 @@ export default function Dashboard() {
                 const data = await driverService.getMyProfile();
                 const profile = data?.data || data;
                 setDriverProfile(profile);
-                setIsOnline(profile?.is_available || false);
+
+                // Khi đăng nhập/mở app: luôn bắt đầu ở trạng thái OFFLINE
+                // Tài xế phải chủ động bật Online khi sẵn sàng nhận chuyến
+                if (profile?.id && profile?.is_available) {
+                    await driverService.updateStatus(profile.id, false);
+                }
+                setIsOnline(false);
 
                 // Fetch today's stats — use user.id because ride-service stores driverId as userId
                 if (user?.id) {

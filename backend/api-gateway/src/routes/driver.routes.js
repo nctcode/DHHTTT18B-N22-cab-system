@@ -2,6 +2,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const services = require('../config/services.config');
 const { verifyToken } = require('../middlewares/auth.middleware');
+const { circuitBreakerMiddleware } = require('../middlewares/circuitBreaker.middleware');
 
 const router = express.Router();
 
@@ -50,6 +51,6 @@ const driverProxy = createProxyMiddleware({
   },
 });
 
-router.use('/', driverProxy);
+router.use('/', circuitBreakerMiddleware('driver-service'), driverProxy);
 
 module.exports = router;

@@ -17,6 +17,8 @@ export const AuthProvider = ({ children }) => {
                         id: res.data?.userId || currentUser.id,
                         email: res.data?.email || currentUser.email,
                         role: res.data?.role || currentUser.role,
+                        name: currentUser.name || null,
+                        phone: currentUser.phone || null,
                     };
                     localStorage.setItem('user', JSON.stringify(validatedUser));
                     setUser(validatedUser);

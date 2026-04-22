@@ -20,7 +20,37 @@ class ReviewService {
     }
 
     // 2. Validate ride via RideReadModel (no sync call to Ride Service)
-    const ride = await prisma.rideReadModel.findUnique({ where: { rideId } });
+    let ride = await prisma.rideReadModel.findUnique({ where: { rideId } });
+
+    // Fallback: If not in local ReadModel (missed event), fetch from Ride Service
+    if (!ride) {
+      console.log(`[ReviewService] Ride ${rideId} not in ReadModel, attempting to fetch from Ride Service API...`);
+      try {
+        const axios = require('axios');
+        const RIDE_SERVICE_URL = process.env.RIDE_SERVICE_URL || 'http://ride-service:3005';
+        const response = await axios.get(`${RIDE_SERVICE_URL}/rides/${rideId}`, {
+           headers: { 'X-User-Id': reviewerId }
+        });
+        
+        if (response.data && response.data.success && response.data.data) {
+           const remoteRide = response.data.data;
+           console.log(`[ReviewService] Fetched ride ${rideId} from API. Syncing to ReadModel.`);
+           
+           // Sync it locally for future
+           ride = await prisma.rideReadModel.create({
+             data: {
+               rideId: remoteRide.id || remoteRide._id,
+               passengerId: remoteRide.userId || remoteRide.passengerId,
+               driverId: remoteRide.driverId,
+               status: remoteRide.status,
+               completedAt: remoteRide.completedAt || new Date()
+             }
+           });
+        }
+      } catch (err) {
+         console.warn(`[ReviewService] Failed to fetch ride ${rideId} from API:`, err.message);
+      }
+    }
 
     if (!ride) {
       throw { status: 404, message: 'Ride not found. It may not have been completed yet.' };
@@ -65,6 +95,7 @@ class ReviewService {
         reviewerId: review.reviewerId,
         targetUserId: review.targetUserId,
         rating: review.rating,
+        comment: review.comment || null,
         averageRating,
         totalReviews: allReviews.length,
         createdAt: review.createdAt

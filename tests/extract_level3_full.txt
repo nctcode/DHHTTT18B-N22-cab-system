@@ -1,0 +1,135 @@
+LEVEL 3 – INTEGRATION 
+TEST
+Mục tiêu: kiểm tra các service 
+tương tác với nhau đúng cách
+CI pipeline (unit + integration)
+Các mục kiểm thử:
+Service-to-service,
+AI integration,
+Kafka event,
+API Gateway,
+Retry logic
+25
+Kafka event ride_requested được 
+publish
+Booking mới được tạo
+Bước 1: User đặt xe
+Gọi API /booking
+Bước 2: Booking Service tạo booking
+{
+  "booking_id": "BK123",
+  "status": "REQUESTED"
+}
+Bước 3: Publish event lên Kafka
+{
+  "event_type": "ride_requested",
+  "ride_id": "BK123",
+  "user_id": "USR001",
+  "pickup": {"lat": 10.76, "lng": 
+106.66},
+  "timestamp": "2026-04-
+04T07:00:00Z"
+}
+Bước 4: Các service khác nhận event
+Matching Service: tìm driver,
+Notification Service: báo user,
+AI Agent: tính ETA, pricing,
+Analytics: lưu log
+Event ride_requested được publish 
+lên Kafka
+Topic đúng; Topic: ride_events
+Payload đúng format
+26
+Driver nhận notification
+Booking đã assign driver
+driver_id
+Notification Service gửi message
+Driver nhận được thông báo
+Không bị delay lớn
+27
+Booking update trạng thái 
+ACCEPTED
+Driver accept chuyến
+{
+  "booking_id": "BK123",
+  "status": "ACCEPTED"
+}
+Status chuyển từ REQUESTED → 
+ACCEPTED
+DB update thành công
+Event ride_accepted được publish
+28
+MCP context được fetch thành công AI Agent cần context
+Để đưa ra quyết định đúng (chọn tài xế, 
+tính giá, ETA…), AI Agent phải có đủ 
+thông tin (ngữ cảnh) từ nhiều nguồn trong 
+hệ thống.
+Context = tập hợp dữ liệu liên quan đến 
+một tình huống hiện tại. Trong Cab 
+Booking: Context = dữ liệu về chuyến đi + 
+tài xế + môi trường + hệ thống
+Ví dụ context khi user đặt xe
+{
+  "ride_id": "BK123",
+  "pickup": {"lat": 10.76, "lng": 106.66},
+  "drop": {"lat": 10.77, "lng": 106.70},
+  "available_drivers": [
+    {"id": "D1", "distance": 2, "rating": 4.8},
+    {"id": "D2", "distance": 1, "rating": 4.5}
+  ],
+  "traffic_level": 0.7,
+  "demand_index": 1.5,
+  "supply_index": 0.8
+}
+ế
+request từ AI Agent
+MCP Gateway trả context hợp lệ
+Có đầy đủ data (ETA, pricing, driver)
+Không lỗi permission
+29
+API Gateway route đúng service
+Request đi qua API Gateway
+/booking endpoint
+Gateway route đúng Booking Service
+Không route sai service
+Response đúng
+30
+Retry khi Pricing service timeout
+Pricing service chậm
+simulate timeout
+Booking Service retry
+Hoặc fallback giá
+Không crash
+31
+Transaction tạo booking thành 
+công
+User tạo booking hợp lệ
+request /booking
+Booking được tạo
+Status = REQUESTED
+DB commit thành công
+Không partial write
+32
+Rollback khi lỗi giữa chừng
+Lỗi xảy ra sau khi insert DB
+simulate lỗi sau bước tạo booking
+Transaction rollback
+Không có booking trong DB
+System consistent
+33
+Payment thất bại → rollback 
+booking
+Payment service fail
+booking + payment
+Booking status = FAILED hoặc 
+CANCELLED
+Không charge tiền
+Không để trạng thái “dang dở”
+34
+Idempotent transaction (duplicate 
+request)
+Client retry request
+cùng Idempotency-Key
+Chỉ 1 transaction được thực hiện
+Không double charge
+Trả kết quả cũ

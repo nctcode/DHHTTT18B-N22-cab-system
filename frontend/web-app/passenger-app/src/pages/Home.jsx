@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import MapView from '../components/MapView';
 import BottomSheet from '../components/BottomSheet';
-import { reverseGeocode } from '../services/geocodeService';
+import { reverseGeocode, searchPlaces } from '../services/geocodeService';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -18,15 +18,33 @@ export default function Home() {
     const [nearbyDrivers, setNearbyDrivers] = useState([]);
     const [showMenu, setShowMenu] = useState(false);
 
-    // Saved places
-    const [savedPlaces] = useState(() => {
+    // Saved places (arrays of addresses)
+    const [savedPlaces, setSavedPlaces] = useState(() => {
         try {
             const saved = localStorage.getItem('savedPlaces');
-            return saved ? JSON.parse(saved) : { home: null, work: null };
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Migrate from old format (single object) to new format (arrays)
+                return {
+                    home: Array.isArray(parsed.home) ? parsed.home : (parsed.home ? [parsed.home] : []),
+                    work: Array.isArray(parsed.work) ? parsed.work : (parsed.work ? [parsed.work] : []),
+                };
+            }
+            return { home: [], work: [] };
         } catch {
-            return { home: null, work: null };
+            return { home: [], work: [] };
         }
     });
+
+    // Address modal state
+    const [showAddressModal, setShowAddressModal] = useState(false);
+    const [addressType, setAddressType] = useState(null); // 'home' or 'work'
+    const [modalView, setModalView] = useState('list'); // 'list' or 'search'
+    const [addressQuery, setAddressQuery] = useState('');
+    const [addressResults, setAddressResults] = useState([]);
+    const [addressSearching, setAddressSearching] = useState(false);
+    const addressSearchTimeout = useRef(null);
+    const addressInputRef = useRef(null);
 
     // Auth guard — wait for loading to finish before redirecting
     useEffect(() => {
@@ -107,15 +125,71 @@ export default function Home() {
         });
     };
 
-    const handleSavedPlace = (place) => {
-        if (!place) return;
+    const handleSavedPlace = (type) => {
+        setAddressType(type);
+        setModalView('list');
+        setAddressQuery('');
+        setAddressResults([]);
+        setShowAddressModal(true);
+    };
+
+    const openAddressSearch = () => {
+        setModalView('search');
+        setAddressQuery('');
+        setAddressResults([]);
+        setTimeout(() => addressInputRef.current?.focus(), 200);
+    };
+
+    const handleAddressSearch = useCallback((value) => {
+        setAddressQuery(value);
+        if (addressSearchTimeout.current) clearTimeout(addressSearchTimeout.current);
+        if (!value.trim()) {
+            setAddressResults([]);
+            setAddressSearching(false);
+            return;
+        }
+        setAddressSearching(true);
+        addressSearchTimeout.current = setTimeout(async () => {
+            const options = {};
+            if (pickupCoords) {
+                options.lat = pickupCoords[0];
+                options.lon = pickupCoords[1];
+            }
+            const places = await searchPlaces(value, options);
+            setAddressResults(places);
+            setAddressSearching(false);
+        }, 400);
+    }, [pickupCoords]);
+
+    const handleAddNewAddress = (place) => {
+        const newPlace = {
+            name: place.name,
+            address: place.address,
+            location: [place.lat, place.lon],
+        };
+        const list = [...(savedPlaces[addressType] || []), newPlace];
+        const updated = { ...savedPlaces, [addressType]: list };
+        setSavedPlaces(updated);
+        localStorage.setItem('savedPlaces', JSON.stringify(updated));
+        setModalView('list');
+    };
+
+    const handleUseSavedAddress = (place) => {
+        setShowAddressModal(false);
         navigate('/destination', {
             state: {
-                pickup: pickupAddress,
-                pickupLocation: pickupCoords,
-                preset: place,
+                pickup: place.address || place.name,
+                pickupLocation: place.location,
             },
         });
+    };
+
+    const handleDeleteSavedAddress = (type, index) => {
+        const list = [...(savedPlaces[type] || [])];
+        list.splice(index, 1);
+        const updated = { ...savedPlaces, [type]: list };
+        setSavedPlaces(updated);
+        localStorage.setItem('savedPlaces', JSON.stringify(updated));
     };
 
     const handleLogout = async () => {
@@ -144,10 +218,10 @@ export default function Home() {
                     <div className="fixed top-0 left-0 bottom-0 w-72 bg-white z-[800] shadow-2xl animate-slideIn">
                         <div className="bg-gradient-to-br from-primary to-blue-700 px-6 pt-12 pb-6 text-white">
                             <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold mb-3">
-                                {user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                                {user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
                             </div>
-                            <p className="font-semibold text-lg">{user?.email || 'Người dùng'}</p>
-                            <p className="text-blue-200 text-sm capitalize">{user?.role === 'SUPERADMIN' ? 'Siêu quản trị' : user?.role === 'DRIVER' ? 'Tài xế' : 'Hành khách'}</p>
+                            <p className="font-semibold text-lg">{user?.name || user?.email || 'Người dùng'}</p>
+                            <p className="text-blue-200 text-sm">{user?.name ? user.email : (user?.role === 'SUPERADMIN' ? 'Siêu quản trị' : user?.role === 'DRIVER' ? 'Tài xế' : 'Hành khách')}</p>
                         </div>
                         <nav className="py-4">
                             {[
@@ -232,29 +306,39 @@ export default function Home() {
 
                 {/* Home / Work Shortcuts */}
                 <div className="flex gap-3 mb-5">
-                    <button onClick={() => handleSavedPlace(savedPlaces.home)}
-                        className="flex-1 flex items-center gap-2.5 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100">
+                    <button onClick={() => handleSavedPlace('home')}
+                        className="flex-1 flex items-center gap-2.5 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 overflow-hidden">
                         <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" />
                             </svg>
                         </div>
-                        <div className="text-left min-w-0">
+                        <div className="text-left min-w-0 flex-1">
                             <p className="text-sm font-semibold text-gray-800">Nhà</p>
-                            <p className="text-xs text-gray-400 truncate">{savedPlaces.home?.address || 'Thiết lập địa chỉ'}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                                {savedPlaces.home.length > 0 ? `${savedPlaces.home.length} địa chỉ đã lưu` : 'Thiết lập địa chỉ'}
+                            </p>
                         </div>
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                     </button>
-                    <button onClick={() => handleSavedPlace(savedPlaces.work)}
-                        className="flex-1 flex items-center gap-2.5 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100">
+                    <button onClick={() => handleSavedPlace('work')}
+                        className="flex-1 flex items-center gap-2.5 px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 overflow-hidden">
                         <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                         </div>
-                        <div className="text-left min-w-0">
+                        <div className="text-left min-w-0 flex-1">
                             <p className="text-sm font-semibold text-gray-800">Nơi làm việc</p>
-                            <p className="text-xs text-gray-400 truncate">{savedPlaces.work?.address || 'Thiết lập địa chỉ'}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                                {savedPlaces.work.length > 0 ? `${savedPlaces.work.length} địa chỉ đã lưu` : 'Thiết lập địa chỉ'}
+                            </p>
                         </div>
+                        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
                     </button>
                 </div>
 
@@ -271,13 +355,175 @@ export default function Home() {
                 </button>
             </BottomSheet>
 
-            {/* Slide-in animation */}
+            {/* Address Modal */}
+            {showAddressModal && (
+                <>
+                    <div className="fixed inset-0 bg-black/50 z-[900]" onClick={() => setShowAddressModal(false)} />
+                    <div className="fixed inset-x-0 bottom-0 z-[950] bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col animate-slideUp">
+                        {/* Modal Header */}
+                        <div className="px-5 pt-5 pb-3">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    {modalView === 'search' && (
+                                        <button onClick={() => setModalView('list')}
+                                            className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200">
+                                            <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                    <h3 className="text-lg font-bold text-gray-900">
+                                        {addressType === 'home' ? '🏠 Địa chỉ Nhà' : '💼 Nơi làm việc'}
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowAddressModal(false)}
+                                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200"
+                                >
+                                    <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Search input (only in search view) */}
+                            {modalView === 'search' && (
+                                <input
+                                    ref={addressInputRef}
+                                    type="text"
+                                    value={addressQuery}
+                                    onChange={(e) => handleAddressSearch(e.target.value)}
+                                    placeholder="Tìm kiếm địa chỉ..."
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
+                                    autoComplete="off"
+                                />
+                            )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto px-2 pb-6">
+                            {/* ===== LIST VIEW ===== */}
+                            {modalView === 'list' && (
+                                <>
+                                    {/* Add new button */}
+                                    <button
+                                        onClick={openAddressSearch}
+                                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 active:bg-blue-100 rounded-xl transition-colors text-left mb-1"
+                                    >
+                                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-sm font-semibold text-primary">Thêm địa chỉ mới</p>
+                                    </button>
+
+                                    {/* Saved addresses */}
+                                    {(savedPlaces[addressType] || []).length > 0 && (
+                                        <div className="px-4 pt-2 pb-1">
+                                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Đã lưu</p>
+                                        </div>
+                                    )}
+                                    {(savedPlaces[addressType] || []).map((place, index) => (
+                                        <div key={index}
+                                            className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 rounded-xl transition-colors">
+                                            <button
+                                                onClick={() => handleUseSavedAddress(place)}
+                                                className="flex-1 flex items-start gap-3 text-left min-w-0"
+                                            >
+                                                <div className={`w-10 h-10 ${addressType === 'home' ? 'bg-blue-50' : 'bg-emerald-50'} rounded-full flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                                    <svg className={`w-4 h-4 ${addressType === 'home' ? 'text-primary' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">{place.name}</p>
+                                                    <p className="text-xs text-gray-500 truncate mt-0.5">{place.address}</p>
+                                                </div>
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSavedAddress(addressType, index)}
+                                                className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors flex-shrink-0"
+                                            >
+                                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    {(savedPlaces[addressType] || []).length === 0 && (
+                                        <div className="text-center py-8">
+                                            <p className="text-3xl mb-2">{addressType === 'home' ? '🏠' : '💼'}</p>
+                                            <p className="text-gray-400 text-sm">Chưa có địa chỉ nào được lưu</p>
+                                            <p className="text-gray-300 text-xs mt-1">Nhấn "Thêm địa chỉ mới" để bắt đầu</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* ===== SEARCH VIEW ===== */}
+                            {modalView === 'search' && (
+                                <>
+                                    {addressSearching && (
+                                        <div className="flex items-center gap-3 px-4 py-4">
+                                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <span className="text-sm text-gray-500">Đang tìm kiếm...</span>
+                                        </div>
+                                    )}
+
+                                    {addressResults.map((place) => (
+                                        <button
+                                            key={place.id}
+                                            onClick={() => handleAddNewAddress(place)}
+                                            className="w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors text-left"
+                                        >
+                                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-gray-900 truncate">{place.name}</p>
+                                                <p className="text-xs text-gray-500 truncate mt-0.5">{place.address}</p>
+                                            </div>
+                                        </button>
+                                    ))}
+
+                                    {addressQuery && !addressSearching && addressResults.length === 0 && (
+                                        <div className="text-center py-10">
+                                            <p className="text-3xl mb-2">🔍</p>
+                                            <p className="text-gray-400 text-sm">Không tìm thấy địa điểm</p>
+                                        </div>
+                                    )}
+
+                                    {!addressQuery && (
+                                        <div className="text-center py-10">
+                                            <p className="text-3xl mb-2">📍</p>
+                                            <p className="text-gray-400 text-sm">Nhập địa chỉ để tìm kiếm</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Animations */}
             <style>{`
                 @keyframes slideIn {
                     from { transform: translateX(-100%); }
                     to { transform: translateX(0); }
                 }
                 .animate-slideIn { animation: slideIn 0.25s ease-out; }
+                @keyframes slideUp {
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
+                }
+                .animate-slideUp { animation: slideUp 0.3s ease-out; }
             `}</style>
         </div>
     );

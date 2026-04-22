@@ -4,6 +4,24 @@ const Ride = require('../models/ride.model'); // Need to check if this exists or
 
 const DRIVER_SERVICE_URL = process.env.DRIVER_SERVICE_URL || 'http://driver-service:3003';
 
+/**
+ * Handle review.created event — save review data into ride document
+ */
+const handleReviewCreated = async (event) => {
+  console.log(`[RideService] Review created for ride ${event.rideId}`);
+  try {
+    const Ride = require('../models/ride.model');
+    await Ride.findByIdAndUpdate(event.rideId, {
+      'review.rating': event.rating,
+      'review.comment': event.comment || null,
+      'review.createdAt': event.createdAt || new Date()
+    });
+    console.log(`✅ Ride ${event.rideId} updated with review (rating: ${event.rating})`);
+  } catch (error) {
+    console.error('Error updating ride with review:', error);
+  }
+};
+
 const startConsumers = async () => {
   await rabbitmq.subscribe(
     rabbitmq.config.exchanges.bookingEvents,
@@ -26,6 +44,14 @@ const startConsumers = async () => {
     'ride.payment.failed',
     'ride_payment_failed_queue', // unique queue name
     handlePaymentFailed
+  );
+
+  // Consume review.created — save review into ride document
+  await rabbitmq.subscribe(
+    rabbitmq.config.exchanges.reviewEvents,
+    'review.created',
+    'ride_review_created_queue',
+    handleReviewCreated
   );
 };
 
@@ -198,5 +224,7 @@ const handleRideCreated = async (event) => {
     console.error('Error handling ride created:', error);
   }
 };
+
+
 
 module.exports = { startConsumers };

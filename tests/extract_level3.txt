@@ -1,0 +1,42 @@
+Notification gửi đến user
+Flow end-to-end thành công
+LEVEL 3 – INTEGRATION 
+TEST
+Mục tiêu: kiểm tra các service 
+tương tác với nhau đúng cách
+CI pipeline (unit + integration)
+Các mục kiểm thử:
+Service-to-service,
+AI integration,
+Kafka event,
+API Gateway,
+Retry logic
+25
+Kafka event ride_requested được 
+publish
+Booking mới được tạo
+Bước 1: User đặt xe
+Gọi API /booking
+Bước 2: Booking Service tạo booking
+{
+  "booking_id": "BK123",
+  "status": "REQUESTED"
+}
+Bước 3: Publish event lên Kafka
+{
+  "event_type": "ride_requested",
+  "ride_id": "BK123",
+  "user_id": "USR001",
+  "pickup": {"lat": 10.76, "lng": 
+106.66},
+  "timestamp": "2026-04-
+04T07:00:00Z"
+}
+Bước 4: Các service khác nhận event
+Matching Service: tìm driver,
+Notification Service: báo user,
+AI Agent: tính ETA, pricing,
+Analytics: lưu log
+Event ride_requested được publish 
+lên Kafka
+Topic đúng; Topic: ride_events

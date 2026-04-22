@@ -1,48 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-// Mock history data for demo
-const MOCK_HISTORY = [
-    {
-        id: 'ride-001',
-        pickup: { address: '268 Lý Thường Kiệt, Q.10, TP.HCM' },
-        dropoff: { address: 'Chợ Bến Thành, Q.1, TP.HCM' },
-        earnings: 45000,
-        vehicleType: 'BIKE',
-        status: 'COMPLETED',
-        date: '2026-02-14T10:30:00',
-        distance: 3.2,
-        duration: 12,
-    },
-    {
-        id: 'ride-002',
-        pickup: { address: 'ĐH Bách Khoa, Q. Thủ Đức' },
-        dropoff: { address: 'Vincom Thủ Đức' },
-        earnings: 28000,
-        vehicleType: 'BIKE',
-        status: 'COMPLETED',
-        date: '2026-02-14T08:15:00',
-        distance: 2.1,
-        duration: 8,
-    },
-    {
-        id: 'ride-003',
-        pickup: { address: 'Sân bay Tân Sơn Nhất' },
-        dropoff: { address: 'Bitexco Financial Tower, Q.1' },
-        earnings: 120000,
-        vehicleType: 'ECONOMY',
-        status: 'COMPLETED',
-        date: '2026-02-13T18:00:00',
-        distance: 8.5,
-        duration: 35,
-    },
-];
+import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 
 export default function RideHistory() {
     const navigate = useNavigate();
-    const [history] = useState(MOCK_HISTORY);
+    const { user } = useAuth();
+    const [history, setHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const totalEarnings = history.reduce((sum, r) => sum + r.earnings, 0);
+    useEffect(() => {
+        const fetchHistory = async () => {
+            if (!user?.id) return;
+            try {
+                const res = await api.get(`/api/rides/driver/${user.id}`);
+                const rides = res.data?.data || res.data || [];
+                // Filter only completed rides and sort by most recent
+                const completed = rides
+                    .filter(r => r.status === 'COMPLETED')
+                    .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
+                setHistory(completed);
+            } catch (error) {
+                console.error('Failed to fetch ride history:', error);
+                setHistory([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchHistory();
+    }, [user]);
+
+    const totalEarnings = history.reduce((sum, r) => sum + (Number(r.finalFare) || 0), 0);
+
+    if (loading) {
+        return (
+            <div className="min-h-full h-full flex items-center justify-center bg-gray-50 box-border">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-full h-full bg-gray-50 overflow-y-auto box-border">
@@ -73,12 +69,12 @@ export default function RideHistory() {
             {/* Ride List */}
             <div className="px-4 py-4 space-y-3">
                 {history.map((ride) => (
-                    <div key={ride.id} className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div key={ride._id || ride.id} className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-lg">{ride.vehicleType === 'BIKE' ? '🛵' : '🚗'}</span>
                                 <span className="text-xs text-gray-400">
-                                    {new Date(ride.date).toLocaleDateString('vi-VN', {
+                                    {new Date(ride.completedAt || ride.createdAt).toLocaleDateString('vi-VN', {
                                         day: '2-digit',
                                         month: '2-digit',
                                         hour: '2-digit',
@@ -87,26 +83,55 @@ export default function RideHistory() {
                                 </span>
                             </div>
                             <span className="font-bold text-primary">
-                                +{ride.earnings.toLocaleString('vi-VN')}₫
+                                +{(Number(ride.finalFare) || 0).toLocaleString('vi-VN')}₫
                             </span>
                         </div>
 
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <p className="text-sm text-gray-600 truncate">{ride.pickup.address}</p>
+                                <p className="text-sm text-gray-600 truncate">{ride.pickup?.address || 'Điểm đón'}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                <p className="text-sm text-gray-600 truncate">{ride.dropoff.address}</p>
+                                <p className="text-sm text-gray-600 truncate">{ride.dropoff?.address || 'Điểm đến'}</p>
                             </div>
                         </div>
 
+                        {/* Review Rating from Passenger */}
+                        {ride.review?.rating && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                                <span className="text-xs text-gray-500">Đánh giá:</span>
+                                <div className="flex items-center gap-0.5">
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <span key={star} className={`text-sm ${star <= ride.review.rating ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                                    ))}
+                                </div>
+                                {ride.review.comment && (
+                                    <span className="text-xs text-gray-400 truncate ml-1">"{ride.review.comment}"</span>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-50">
-                            <span className="text-xs text-gray-400">{ride.distance} km</span>
-                            <span className="text-xs text-gray-400">{ride.duration} phút</span>
-                            <span className="ml-auto text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                                {ride.status === 'COMPLETED' ? 'Hoàn thành' : ride.status}
+                            <span className="text-xs text-gray-400">
+                                {ride.actualDistanceKm
+                                    ? `${parseFloat(ride.actualDistanceKm).toFixed(1)} km`
+                                    : ride.previewRoute?.distanceKm
+                                        ? `${parseFloat(ride.previewRoute.distanceKm).toFixed(1)} km`
+                                        : '--- km'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                {ride.actualDurationMin
+                                    ? `${Math.round(ride.actualDurationMin)} phút`
+                                    : '---'}
+                            </span>
+                            <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${
+                                ride.paymentStatus === 'PAID'
+                                    ? 'text-green-600 bg-green-50'
+                                    : 'text-yellow-600 bg-yellow-50'
+                            }`}>
+                                {ride.paymentStatus === 'PAID' ? 'Đã thanh toán' : ride.paymentMethod || 'CASH'}
                             </span>
                         </div>
                     </div>
