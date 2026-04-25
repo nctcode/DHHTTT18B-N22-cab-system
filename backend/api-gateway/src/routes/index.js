@@ -11,6 +11,7 @@ const pricingRoutes = require('./pricing.routes');
 const notificationRoutes = require('./notification.routes');
 const reviewRoutes = require('./review.routes');
 const aiRoutes = require('./ai.routes');
+const mcpRoutes = require('./mcp.routes');
 
 const { getAllBreakerStats } = require('../middlewares/circuitBreaker.middleware');
 
@@ -54,6 +55,7 @@ router.use('/pricing', pricingRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/ai', aiRoutes);
+router.use('/mcp', mcpRoutes);
 
 // Routing Service Proxy
 // Routing Service Proxy

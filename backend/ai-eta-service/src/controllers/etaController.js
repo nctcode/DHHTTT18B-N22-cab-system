@@ -5,6 +5,7 @@ const send = (res, code, success, message, data = null) =>
 
 class ETAController {
   async predict(req, res) {
+    console.log("🤖 AI received context:", req.body);
     try {
       const { pickup, destination, timeOfDay, dayOfWeek } = req.body;
 

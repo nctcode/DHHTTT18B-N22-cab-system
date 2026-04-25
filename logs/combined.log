@@ -1,0 +1,71 @@
+{"level":"info","message":"🚀 API Gateway is running on port 3000","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"Environment: development","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"CORS enabled for: *","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"JWT Secret: your-secre...","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"Registered Services:","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - AUTH: http://localhost:3001","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - USER: http://localhost:3002","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - DRIVER: http://localhost:3003","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - RIDE: http://localhost:3005","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - BOOKING: http://localhost:3004","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - PAYMENT: http://localhost:3006","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - PRICING: http://localhost:3007","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - NOTIFICATION: http://localhost:3008","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - REVIEW: http://localhost:3009","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - ROUTING: http://localhost:4040","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - AIMATCHING: http://localhost:4001","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - AIETA: http://localhost:4002","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - AISURGE: http://localhost:4003","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - FEATURESTORE: http://localhost:4020","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - MODELSERVING: http://localhost:4010","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"  - MLTRAINING: http://localhost:4030","service":"api-gateway","timestamp":"2026-04-25 23:10:17"}
+{"level":"info","message":"🚀 API Gateway is running on port 3333 ","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"Environment: development","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"CORS enabled for: *","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"JWT Secret: your-secre...","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"Registered Services:","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - AUTH: http://localhost:3001","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - USER: http://localhost:3002","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - DRIVER: http://localhost:3003","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - RIDE: http://localhost:3005","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - BOOKING: http://localhost:3004","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - PAYMENT: http://localhost:3006","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - PRICING: http://localhost:3007","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - NOTIFICATION: http://localhost:3008","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - REVIEW: http://localhost:3009","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - ROUTING: http://localhost:4040","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - AIMATCHING: http://localhost:4001","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - AIETA: http://localhost:4002","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - AISURGE: http://localhost:4003","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - FEATURESTORE: http://localhost:4020","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - MODELSERVING: http://localhost:4010","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"level":"info","message":"  - MLTRAINING: http://localhost:4030","service":"api-gateway","timestamp":"2026-04-25 23:10:46"}
+{"ip":"::1","level":"info","message":"POST /api/mcp/context","service":"api-gateway","timestamp":"2026-04-25 23:11:00","userAgent":"axios/1.15.0"}
+{"ip":"::1","level":"info","message":"GET /api/route/geocode/reverse","service":"api-gateway","timestamp":"2026-04-25 23:15:25","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"GET /api/route/geocode/reverse","service":"api-gateway","timestamp":"2026-04-25 23:15:25","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/route","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/route","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:15:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/pricing/estimate","service":"api-gateway","timestamp":"2026-04-25 23:17:07","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/rides/eta","service":"api-gateway","timestamp":"2026-04-25 23:18:37","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/rides/eta","service":"api-gateway","timestamp":"2026-04-25 23:18:38","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:24","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:25","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:26","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:27","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:28","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"POST /api/auth/logout","service":"api-gateway","timestamp":"2026-04-25 23:43:28","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"GET /api/auth/me","service":"api-gateway","timestamp":"2026-04-25 23:43:31","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"GET /api/route/geocode/reverse","service":"api-gateway","timestamp":"2026-04-25 23:43:44","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"GET /api/route/geocode/reverse","service":"api-gateway","timestamp":"2026-04-25 23:43:47","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
+{"ip":"::1","level":"info","message":"GET /api/auth/me","service":"api-gateway","timestamp":"2026-04-25 23:43:51","userAgent":"Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1 Edg/147.0.0.0"}
