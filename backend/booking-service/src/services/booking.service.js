@@ -399,8 +399,14 @@ class BookingService {
       throw error;
     }
 
+    if (['CANCELLED', 'NO_DRIVER_FOUND', 'FAILED', 'PAYMENT_FAILED'].includes(booking.status)) {
+      return booking;
+    }
+
     if (!['PENDING', 'SEARCHING', 'MATCHED'].includes(booking.status)) {
-       throw new Error('Cannot cancel booking in current status');
+       const error = new Error(`Cannot cancel booking in current status: ${booking.status}`);
+       error.statusCode = 400;
+       throw error;
     }
 
     // Clear any pending offer timeout

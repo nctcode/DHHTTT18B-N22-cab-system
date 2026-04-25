@@ -11,6 +11,8 @@ import MapView from '../components/MapView';
 import StatusToggle from '../components/StatusToggle';
 import RideRequestCard from '../components/RideRequestCard';
 import toast from 'react-hot-toast';
+import { useRide } from '../contexts/RideContext';
+import { resolveRouteFromState } from '../utils/navigationUtils';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -29,6 +31,8 @@ export default function Dashboard() {
     const [countdown, setCountdown] = useState(0);
     const countdownRef = useRef(null);
 
+    const { currentRide, fetchRide, clearRide } = useRide();
+
     // Get current geolocation
     useEffect(() => {
         if (navigator.geolocation) {
@@ -45,6 +49,9 @@ export default function Dashboard() {
             setDriverPosition([10.7769, 106.7009]);
         }
     }, []);
+
+
+
 
     // Send location periodically when online
     useEffect(() => {
@@ -183,10 +190,17 @@ export default function Dashboard() {
 
                 // Khi đăng nhập/mở app: luôn bắt đầu ở trạng thái OFFLINE
                 // Tài xế phải chủ động bật Online khi sẵn sàng nhận chuyến
-                if (profile?.id && profile?.is_available) {
-                    await driverService.updateStatus(profile.id, false);
+                const hasForcedOffline = sessionStorage.getItem('hasForcedOffline');
+                if (!hasForcedOffline) {
+                    if (profile?.id && profile?.is_available) {
+                        await driverService.updateStatus(profile.id, false);
+                    }
+                    setIsOnline(false);
+                    sessionStorage.setItem('hasForcedOffline', 'true');
+                } else {
+                    // Nếu đã vào app rồi, giữ nguyên trạng thái đang có trên server
+                    setIsOnline(profile?.is_available || false);
                 }
-                setIsOnline(false);
 
                 // Fetch today's stats — use user.id because ride-service stores driverId as userId
                 if (user?.id) {
@@ -273,6 +287,11 @@ export default function Dashboard() {
                 return;
             }
 
+            localStorage.setItem('driverActiveRideId', acceptedRide._id);
+            
+            // Critical: Update the context before navigating so ActiveRideGuard doesn't kick us out
+            await fetchRide(acceptedRide._id);
+            
             navigate('/pickup', {
                 state: {
                     ride: acceptedRide,
@@ -300,16 +319,17 @@ export default function Dashboard() {
     };
 
     const handleLogout = async () => {
-        if (driverProfile && isOnline) {
-            try {
-                // Set offline before logging out
+        try {
+            if (isOnline) {
                 await driverService.updateStatus(driverProfile.id, false);
-            } catch (err) {
-                console.error('Failed to set offline on logout', err);
             }
+        } catch (err) {
+            console.error('Failed to set offline on logout', err);
+        } finally {
+            clearRide();
+            await logout();
+            navigate('/login', { replace: true });
         }
-        await logout();
-        navigate('/login');
     };
 
     return (
@@ -387,6 +407,30 @@ export default function Dashboard() {
                         onToggle={handleToggleStatus}
                         loading={statusLoading}
                     />
+
+                    {/* Active Ride Banner */}
+                    {currentRide && !['COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND', 'FAILED', 'PAYMENT_FAILED', 'CANCELLED_BY_DRIVER'].includes(currentRide.status) && (
+                        <div 
+                            className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors" 
+                            onClick={() => {
+                                const route = resolveRouteFromState(currentRide.status, 'DRIVER', currentRide._id || currentRide.id);
+                                if (route) navigate(route);
+                            }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl">
+                                    🚗
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-blue-800 text-sm">Bạn đang có chuyến đi</h3>
+                                    <p className="text-xs text-blue-600">Nhấn để quay lại màn hình chuyến đi</p>
+                                </div>
+                            </div>
+                            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                    )}
                 </div>
             </div>
 

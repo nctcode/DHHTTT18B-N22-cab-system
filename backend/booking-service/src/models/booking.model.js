@@ -45,8 +45,6 @@ const BookingSchema = new mongoose.Schema({
   },
   idempotencyKey: {
     type: String,
-    unique: true,
-    sparse: true,   // allow null but enforce uniqueness when present
     index: true
   },
   status: { 

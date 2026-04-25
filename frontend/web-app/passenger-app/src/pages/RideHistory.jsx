@@ -98,6 +98,14 @@ export default function RideHistory() {
                                 </span>
                             </div>
 
+                            {/* Mã chuyến đi */}
+                            <div className="mb-2">
+                                <span className="text-xs text-gray-400">Mã chuyến: </span>
+                                <span className="text-xs font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                    {ride.bookingId || ride._id || ride.id}
+                                </span>
+                            </div>
+
                             <div className="space-y-1.5 mb-3">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>

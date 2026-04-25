@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import socketService from '../services/socketService';
 import MapView from '../components/MapView';
 import api from '../services/api';
 import rideService from '../services/rideService';
 import toast from 'react-hot-toast';
+import { useRide } from '../contexts/RideContext';
 
 export default function InProgress() {
     const navigate = useNavigate();
     const { id } = useParams();
     const location = useLocation();
-    const { ride, bookingId, driverPosition: initialPos } = location.state || {};
+    
+    const { currentRide: ride, loading, clearRide, updateRideState } = useRide();
+    const { bookingId, driverPosition: initialPos } = location.state || {};
 
     const [driverPosition, setDriverPosition] = useState(initialPos || [10.7769, 106.7009]);
     const [elapsedTime, setElapsedTime] = useState(0);
@@ -20,9 +23,9 @@ export default function InProgress() {
     const [routeCoords, setRouteCoords] = useState(null);
 
     const rideId = id || bookingId;
-    const dropoffCoords = ride?.dropoff
-        ? [ride.dropoff.lat, ride.dropoff.lng]
-        : null;
+    const dropoffCoords = useMemo(() => {
+        return ride?.dropoff ? [ride.dropoff.lat, ride.dropoff.lng] : null;
+    }, [ride?.dropoff]);
 
     const [realtimeDistance, setRealtimeDistance] = useState(null);
     const [realtimeEta, setRealtimeEta] = useState(null);
@@ -31,7 +34,7 @@ export default function InProgress() {
     const [isSimulating, setIsSimulating] = useState(false);
     const [simulationCreate, setSimulationInterval] = useState(null);
 
-    // Join ride room
+    // Join ride room and set active ride
     useEffect(() => {
         if (rideId) {
             socketService.joinRide(rideId);
@@ -56,6 +59,8 @@ export default function InProgress() {
             if (rideId) socketService.leaveRide(rideId);
 
             toast.error('Khách đã hủy chuyến!', { duration: 4000, icon: '❌' });
+            localStorage.removeItem('driverActiveRideId');
+            localStorage.removeItem('driverRideState');
             navigate('/dashboard');
         };
 
@@ -234,6 +239,7 @@ export default function InProgress() {
                     const freshRide = response?.data || response;
                     if (freshRide?.tripRoute?.polyline?.length > 0) {
                         setRouteCoords(freshRide.tripRoute.polyline);
+                        updateRideState(freshRide);
                         console.log('✅ tripRoute fetched from API');
                     } else {
                         console.warn('⚠️ tripRoute still not available');
@@ -286,6 +292,7 @@ export default function InProgress() {
 
             toast.success('Chuyến đi hoàn tất', { id: 'complete_ride' });
             socketService.leaveRide(rideId);
+            clearRide();
 
             const completedRide = response.data || response.ride || ride;
 
@@ -319,6 +326,14 @@ export default function InProgress() {
                 <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-lg p-3 animate-slideDown">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+                            >
+                                <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
                             <div className="relative">
                                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                                     <span className="text-xl">🚗</span>

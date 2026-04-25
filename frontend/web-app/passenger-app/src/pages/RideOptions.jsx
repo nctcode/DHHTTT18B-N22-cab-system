@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useRide } from '../contexts/RideContext';
 import { pricingService, bookingService } from '../services';
 import { calculateDistance } from '../utils/mapHelpers';
 import RideOptionsList from '../components/ride/RideOptionsList';
@@ -17,6 +18,7 @@ export default function RideOptions() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { fetchRide } = useRide();
     const { pickup, pickupLocation, destination, destinationLocation } = location.state || {};
 
     const [rideOptions, setRideOptions] = useState([]);
@@ -114,13 +116,49 @@ export default function RideOptions() {
                 duration_min: routeInfo.duration_min,
             });
 
-            // Enrich with ETA
-            const enriched = estimates.map((est) => ({
-                ...est,
-                eta: Math.max(1, Math.round((routeInfo.distance_km / (AVG_SPEED[est.vehicleType] || 25)) * 60)),
-                distance_km: routeInfo.distance_km,
-                duration_min: routeInfo.duration_min,
-            }));
+            // Call AI ETA service for prediction
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+            const toObj = (loc) => Array.isArray(loc) ? { lat: loc[0], lng: loc[1] } : { lat: loc.lat, lng: loc.lng };
+            let etaPrediction = null;
+            try {
+                const now = new Date();
+                const token = localStorage.getItem('accessToken');
+                const etaResp = await axios.post(`${API_URL}/rides/eta`, {
+                    pickup: toObj(pickupLocation),
+                    destination: toObj(destinationLocation),
+                    timeOfDay: now.getHours(),
+                    dayOfWeek: now.getDay(),
+                }, {
+                    timeout: 8000,
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (etaResp.data?.success) {
+                    etaPrediction = etaResp.data.data;
+                    console.log('🤖 AI ETA prediction:', etaPrediction);
+                }
+            } catch (etaErr) {
+                console.warn('⚠️ AI ETA service unavailable, using local fallback:', etaErr.message);
+            }
+
+            // Enrich with ETA from AI or fallback
+            const enriched = estimates.map((est) => {
+                let eta;
+                if (etaPrediction?.predictedTripDurationMinutes) {
+                    // AI ETA trả về thời gian chuyến đi, tính ETA theo loại xe
+                    const speedRatio = (AVG_SPEED[est.vehicleType] || 25) / 25;
+                    eta = Math.max(1, Math.round(etaPrediction.predictedTripDurationMinutes / speedRatio));
+                } else {
+                    // Fallback local nếu AI ETA hoàn toàn không khả dụng
+                    eta = Math.max(1, Math.round((routeInfo.distance_km / (AVG_SPEED[est.vehicleType] || 25)) * 60));
+                }
+                return {
+                    ...est,
+                    eta,
+                    distance_km: routeInfo.distance_km,
+                    duration_min: routeInfo.duration_min,
+                    etaSource: etaPrediction ? (etaPrediction.source || 'ai') : 'local',
+                };
+            });
 
             setRideOptions(enriched);
 
@@ -187,6 +225,10 @@ export default function RideOptions() {
             const result = await bookingService.createBooking(bookingData);
             toast.success('Đặt xe thành công!');
             const newBookingId = result.data?._id || result.data?.id || result.booking?.id;
+            
+            localStorage.setItem('activeRideId', newBookingId);
+            await fetchRide(newBookingId);
+            
             navigate('/searching', {
                 state: {
                     bookingId: newBookingId,

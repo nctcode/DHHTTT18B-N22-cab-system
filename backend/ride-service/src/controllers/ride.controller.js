@@ -580,8 +580,9 @@ exports.getETA = async (req, res) => {
     const prediction = etaResp.data?.data;
     sendResponse(res, 200, true, 'ETA prediction', prediction);
   } catch (error) {
-    // Fallback if AI ETA service is unavailable
-    if (error.code === 'ECONNREFUSED' || error.code === 'ECONNABORTED') {
+    // Fallback if AI ETA service is unavailable (any error)
+    console.warn(`AI ETA service error (${error.code || error.message}), using fallback calculation`);
+    try {
       const { pickup, destination } = req.body;
       const R = 6371;
       const dLat = (destination.lat - pickup.lat) * Math.PI / 180;
@@ -598,8 +599,9 @@ exports.getETA = async (req, res) => {
         distanceKm: parseFloat(distKm.toFixed(2)),
         source: 'fallback',
       });
+    } catch (fallbackErr) {
+      handleError(res, fallbackErr);
     }
-    handleError(res, error);
   }
 };
 

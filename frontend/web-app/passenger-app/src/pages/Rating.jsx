@@ -4,10 +4,12 @@ import { reviewService, rideService } from '../services';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
+import { useRide } from '../contexts/RideContext';
 
 export default function Rating() {
     const { rideId } = useParams();
     const navigate = useNavigate();
+    const { clearRide } = useRide();
     const [ride, setRide] = useState(null);
     const [driverProfile, setDriverProfile] = useState(null);
     const [rating, setRating] = useState(0);
@@ -60,6 +62,7 @@ export default function Rating() {
             setLoading(true);
             await reviewService.submitReview(rideId, ride.driverId, rating, finalComment);
             toast.success('Cảm ơn bạn đã đánh giá!');
+            clearRide();
             navigate('/home');
         } catch (error) {
             toast.error(error?.response?.data?.message || 'Gửi đánh giá thất bại');
@@ -179,7 +182,10 @@ export default function Rating() {
                         Gửi đánh giá
                     </Button>
                     <button
-                        onClick={() => navigate('/home')}
+                        onClick={() => {
+                            clearRide();
+                            navigate('/home');
+                        }}
                         className="w-full py-3 text-gray-500 font-medium hover:text-gray-700 transition-colors"
                         disabled={loading}
                     >

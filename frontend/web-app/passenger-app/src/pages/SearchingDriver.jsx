@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import socketService from '../services/socketService';
 import { bookingService } from '../services';
 import { useAuth } from '../contexts/AuthContext';
+import { useRide } from '../contexts/RideContext';
 import MapView from '../components/MapView';
 import RippleAnimation from '../components/RippleAnimation';
 import Button from '../components/Button';
@@ -12,41 +13,17 @@ export default function SearchingDriver() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const { bookingId, pickupCoords: navPickupCoords, pickup: navPickup, destination: navDestination } = location.state || {};
-
-    const [booking, setBooking] = useState(null);
-    const [driver, setDriver] = useState(null);
+    const { currentRide: booking, loading, clearRide, fetchRide } = useRide();
+    const bookingId = booking?._id || booking?.id;
+    
+    const { pickupCoords: navPickupCoords } = location.state || {};
     const [nearbyDrivers, setNearbyDrivers] = useState([]);
+    const [driver, setDriver] = useState(null);
     const [cancelling, setCancelling] = useState(false);
-    const [loading, setLoading] = useState(true);
 
-    // Extract coordinates: prefer booking data, fallback to nav state
-    // Moved up to fix ReferenceError
     const pickupCoords = booking?.pickup?.lat
         ? [booking.pickup.lat, booking.pickup.lng]
         : (Array.isArray(navPickupCoords) ? navPickupCoords : null);
-
-    // Load booking data
-    useEffect(() => {
-        if (!bookingId) {
-            navigate('/home');
-            return;
-        }
-
-        const loadBooking = async () => {
-            try {
-                const data = await bookingService.getBooking(bookingId);
-                setBooking(data);
-                setLoading(false);
-            } catch (err) {
-                console.error('Failed to load booking:', err);
-                toast.error('Không thể tải chi tiết chuyến đi');
-                navigate('/home');
-            }
-        };
-
-        loadBooking();
-    }, [bookingId, navigate]);
 
     // Socket listeners
     useEffect(() => {
@@ -71,38 +48,44 @@ export default function SearchingDriver() {
             toast('Đã tìm thấy tài xế, đang chờ phản hồi...', { icon: '⏳' });
         };
 
-        const handleRideCreated = (data) => {
+        const handleRideCreated = async (data) => {
             console.log('🎉 Ride created (Driver Accepted):', data);
-            // NOW we show the Driver Found UI
             if (data.driver) {
                 setDriver(data.driver);
-            } else if (booking?.driverId) {
-                // Fallback if driver details are not in event (should be though)
+            }
+            
+            if (data.rideId) {
+                localStorage.setItem('activeRideId', data.rideId);
             }
 
-            // Navigate after short delay
-            setTimeout(() => {
+            setTimeout(async () => {
                 if (data.bookingId === bookingId || data.rideId) {
+                    if (data.rideId) await fetchRide(data.rideId);
                     navigate('/ride/' + data.rideId);
                 }
             }, 3000);
         };
 
-        const handleRideAssigned = (data) => {
+        const handleRideAssigned = async (data) => {
             console.log('🎉 Ride assigned:', data);
             if (data.driver) setDriver(data.driver);
 
-            setTimeout(() => {
+            if (data.rideId) {
+                localStorage.setItem('activeRideId', data.rideId);
+            }
+
+            setTimeout(async () => {
                 if (data.bookingId === bookingId || data.rideId) {
+                    if (data.rideId) await fetchRide(data.rideId);
                     navigate('/ride/' + data.rideId);
                 }
             }, 3000);
         };
 
-        const handleRideStatus = (data) => {
+        const handleRideStatus = async (data) => {
             if (data.rideId && (data.status === 'ASSIGNED' || data.status === 'CREATED')) {
-                // Fetch full ride details if we missed the event content
-                // For now, just navigate
+                localStorage.setItem('activeRideId', data.rideId);
+                await fetchRide(data.rideId);
                 navigate('/ride/' + data.rideId);
             }
         };
@@ -153,40 +136,43 @@ export default function SearchingDriver() {
         if (!bookingId) return;
 
         try {
-            setCancelling(true);
-            await bookingService.cancelBooking(bookingId);
-            toast.success('Đã hủy chuyến');
-            navigate('/home');
+            const bookingIdToCancel = booking?._id || booking?.id;
+            if (bookingIdToCancel) {
+                await bookingService.cancelBooking(bookingIdToCancel);
+            }
+            
+            clearRide();
+            toast.error('Đã hủy tìm chuyến xe', { id: 'cancel_search' });
+            navigate('/home', { replace: true });
         } catch (err) {
             console.error('Cancel failed:', err);
-            toast.error('Hủy chuyến thất bại');
+            toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi hủy chuyến');
         } finally {
             setCancelling(false);
         }
     };
 
-    if (loading || !booking) {
+    if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-gray-500 font-medium">Đang tải chuyến đi...</p>
+                <p className="text-gray-500 font-medium">Đang khởi tạo tìm kiếm...</p>
             </div>
         );
     }
-
-    // Extract coordinates: prefer booking data, fallback to nav state
-    // (Moved to top)
+    
+    if (!booking) return null;
 
     return (
         <div className="relative h-full w-full flex flex-col bg-gray-100 overflow-hidden box-border">
             {/* Top Status Bar (Overlays Map) */}
             <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/20 to-transparent pointer-events-none">
-                <div className="flex justify-between items-start text-white pointer-events-auto">
+                <div className="absolute top-4 left-4 z-10 pointer-events-auto">
                     <button
                         onClick={() => navigate('/home')}
-                        className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer"
+                        className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                         </svg>
                     </button>

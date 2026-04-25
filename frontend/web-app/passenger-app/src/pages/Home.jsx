@@ -5,12 +5,16 @@ import { useSocket } from '../contexts/SocketContext';
 import MapView from '../components/MapView';
 import BottomSheet from '../components/BottomSheet';
 import { reverseGeocode, searchPlaces } from '../services/geocodeService';
+import api from '../services/api';
+import { useRide } from '../contexts/RideContext';
+import { resolveRouteFromState } from '../utils/navigationUtils';
 
 export default function Home() {
     const navigate = useNavigate();
     const { user, logout, loading } = useAuth();
     const { socketService, isConnected } = useSocket();
     const mapRef = useRef(null);
+    const { currentRide, clearRide } = useRide();
 
     const [pickupAddress, setPickupAddress] = useState('Đang xác định vị trí của bạn...');
     const [pickupCoords, setPickupCoords] = useState(null);
@@ -50,6 +54,9 @@ export default function Home() {
     useEffect(() => {
         if (!loading && !user) navigate('/login', { replace: true });
     }, [user, loading, navigate]);
+
+
+
 
     // Listen for nearby drivers via global socket (NO connect/disconnect here)
     useEffect(() => {
@@ -193,11 +200,15 @@ export default function Home() {
     };
 
     const handleLogout = async () => {
+        clearRide();
         await logout();
         navigate('/login', { replace: true });
     };
 
     if (!user) return null;
+
+    // Filter out inactive statuses for the banner
+    const isRideActive = currentRide && !['COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND', 'FAILED', 'PAYMENT_FAILED', 'CANCELLED_BY_DRIVER'].includes(currentRide.status);
 
     return (
         <div className="relative h-full w-full overflow-hidden bg-gray-100 flex flex-col box-border">
@@ -210,6 +221,30 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
             </button>
+
+            {/* Active Ride Banner */}
+            {isRideActive && (
+                <div 
+                    className="absolute top-20 left-4 right-4 z-[500] bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-md flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors animate-slideDown" 
+                    onClick={() => {
+                        const route = resolveRouteFromState(currentRide.status, 'PASSENGER', currentRide._id || currentRide.id);
+                        if (route) navigate(route);
+                    }}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl">
+                            🚗
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-blue-800 text-sm">Bạn đang có chuyến đi</h3>
+                            <p className="text-xs text-blue-600">Nhấn để tiếp tục chuyến đi</p>
+                        </div>
+                    </div>
+                    <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            )}
 
             {/* Side Menu */}
             {showMenu && (

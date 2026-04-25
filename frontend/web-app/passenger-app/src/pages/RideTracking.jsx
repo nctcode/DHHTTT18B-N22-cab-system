@@ -6,12 +6,12 @@ import routingService from '../services/routingService';
 import MapView from '../components/MapView';
 import Button from '../components/Button';
 import toast from 'react-hot-toast';
+import { useRide } from '../contexts/RideContext';
 
 export default function RideTracking() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [ride, setRide] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { currentRide: ride, loading, updateRideState } = useRide();
     const [driverLocation, setDriverLocation] = useState(null);
     const [routeCoords, setRouteCoords] = useState(null);
     const [realtimeDistance, setRealtimeDistance] = useState(null);
@@ -19,35 +19,8 @@ export default function RideTracking() {
     const [isExpanded, setIsExpanded] = useState(false);
     const mapRef = useRef(null);
 
-    // 1. Fetch Ride Data
+    // 1. Join Socket Room
     useEffect(() => {
-        const fetchRide = async () => {
-            try {
-                // rideService.getRide returns { success: true, data: ride } or just ride object depending on backend
-                const response = await rideService.getRide(id);
-                // Handle different response structures
-                const rideData = response.data || response.ride || response;
-
-                if (rideData) {
-                    setRide(rideData);
-                    // Initial driver location from ride data if available
-                    // Note: Ride model might not have current_lat/lng, but booking.matched event did.
-                    // For now, we wait for socket update or need API to include driver location.
-                } else {
-                    toast.error('Không tìm thấy chuyến đi');
-                    navigate('/home');
-                }
-            } catch (error) {
-                console.error('Failed to fetch ride:', error);
-                toast.error('Lỗi tải chi tiết chuyến đi');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRide();
-
-        // Socket Connection
         const token = localStorage.getItem('accessToken');
         if (token) {
             const socket = socketService.connect(token);
@@ -118,6 +91,7 @@ export default function RideTracking() {
 
                 // Driver cancelled → navigate back to searching for rematching
                 if (data.status === 'CANCELLED_BY_DRIVER') {
+                    localStorage.removeItem('activeRideId');
                     toast('Tài xế đã hủy chuyến. Đang tìm tài xế khác…', { icon: '🔄', duration: 5000 });
                     navigate('/searching', {
                         state: {
@@ -132,9 +106,10 @@ export default function RideTracking() {
                 }
 
                 // Merge full data to ensure we get new routes (tripRoute, etc.)
-                setRide(prev => ({ ...prev, ...data }));
+                updateRideState(data);
 
                 if (data.status === 'COMPLETED') {
+                    localStorage.removeItem('activeRideId');
                     toast.success('Chuyến đi đã hoàn thành!');
                     navigate(`/payment/${id}`);
                 }
@@ -144,6 +119,8 @@ export default function RideTracking() {
         const handleRideCompleted = (data) => {
             if (data.rideId === id) {
                 console.log('Ride completed:', data);
+                updateRideState({ ...data, status: 'COMPLETED' });
+                localStorage.removeItem('activeRideId');
                 toast.success('Chuyến đi đã hoàn thành!');
                 navigate(`/payment/${id}`);
             }
@@ -152,7 +129,7 @@ export default function RideTracking() {
         const handleRideAssigned = (data) => {
             if (data.rideId === id || data.bookingId === ride.bookingId) {
                 console.log('📍 Ride assigned update with route:', data);
-                setRide(prev => ({ ...prev, ...data }));
+                updateRideState(data);
 
                 // Set initial driver position from the event
                 if (data.driverLocation) {

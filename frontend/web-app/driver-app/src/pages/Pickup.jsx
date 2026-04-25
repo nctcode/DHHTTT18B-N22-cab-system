@@ -1,16 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import socketService from '../services/socketService';
 import rideService from '../services/rideService';
 import api from '../services/api';
 import MapView from '../components/MapView';
 import toast from 'react-hot-toast';
+import { useRide } from '../contexts/RideContext';
 
 export default function Pickup() {
     const navigate = useNavigate();
     const location = useLocation();
-
-    const [ride, setRide] = useState(location.state?.ride || null);
+    
+    const { currentRide: ride, loading, clearRide, updateRideState } = useRide();
     const { bookingId, driverPosition: initialDriverPos } = location.state || {};
 
     const [driverPosition, setDriverPosition] = useState(initialDriverPos || [10.7769, 106.7009]);
@@ -25,6 +26,8 @@ export default function Pickup() {
         name: ride?.user?.name || ride?.passenger?.name || ride?.passengerName || 'Khách hàng',
         avatar: ride?.user?.avatar || ride?.passenger?.avatar || null
     });
+
+
 
     useEffect(() => {
         if (ride?.passengerId && passenger.name === 'Khách hàng') {
@@ -45,9 +48,9 @@ export default function Pickup() {
     const simulationStepRef = useRef(0);
 
     // Pickup marker only — dropoff NOT revealed until Stage 4
-    const pickupCoords = ride?.pickup
-        ? [ride.pickup.lat, ride.pickup.lng]
-        : null;
+    const pickupCoords = useMemo(() => {
+        return ride?.pickup ? [ride.pickup.lat, ride.pickup.lng] : null;
+    }, [ride?.pickup]);
 
     // Real GPS tracking — paused during simulation
     useEffect(() => {
@@ -79,7 +82,7 @@ export default function Pickup() {
                 const freshRide = response?.data || response;
                 if (freshRide?.driverToPickupRoute?.polyline?.length > 0) {
                     setRouteCoords(freshRide.driverToPickupRoute.polyline);
-                    setRide(prev => ({ ...prev, ...freshRide }));
+                    updateRideState(freshRide);
                     console.log('✅ driverToPickupRoute fetched from API');
                 } else {
                     console.warn('⚠️ driverToPickupRoute not available yet');
@@ -136,6 +139,8 @@ export default function Pickup() {
             if (bookingId) socketService.leaveRide(bookingId);
 
             toast.error('Khách đã hủy chuyến!', { duration: 4000, icon: '❌' });
+            localStorage.removeItem('driverActiveRideId');
+            localStorage.removeItem('driverRideState');
             navigate('/dashboard');
         };
 
@@ -238,13 +243,8 @@ export default function Pickup() {
 
             if (startedRide?._id) {
                 toast.success('🚀 Chuyến đi bắt đầu!');
-                navigate('/ride/' + startedRide._id, {
-                    state: {
-                        ride: startedRide,
-                        bookingId,
-                        driverPosition
-                    }
-                });
+                // Update context so Guard knows the new status and automatically redirects
+                updateRideState(startedRide);
             } else {
                 toast.error('Lỗi: Không nhận được dữ liệu chuyến đi');
             }
@@ -265,18 +265,21 @@ export default function Pickup() {
         } catch (err) {
             console.error('Driver cancel API failed:', err);
         }
-        socketService.leaveRide(bookingId);
-        toast('Đã hủy nhận chuyến', { icon: '❌' });
-        navigate('/dashboard');
+        clearRide();
+        toast.error('Đã hủy chuyến đi', { id: 'cancel_ride' });
+        navigate('/dashboard', { replace: true });
     };
 
-    if (!ride) {
+    if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <p className="text-gray-500">Không có dữ liệu chuyến</p>
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-gray-500 font-medium">Đang tải thông tin chuyến đi...</p>
             </div>
         );
     }
+
+    if (!ride) return null;
 
     return (
         <div className="relative h-full w-full flex flex-col overflow-hidden box-border">

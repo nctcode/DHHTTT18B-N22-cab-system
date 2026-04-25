@@ -1,0 +1,68 @@
+# Thiết kế lại hệ thống Điều hướng theo Trạng thái chuyến đi (State-driven Navigation)
+
+Hệ thống điều hướng hiện tại phụ thuộc vào lịch sử trình duyệt (history stack) và lưu các trạng thái rải rác ở `localStorage`. Điều này khiến cho việc F5 hay bấm nút Back dễ gây lỗi, bị treo dữ liệu hoặc điều hướng sai màn hình. Kế hoạch này sẽ đưa ra cơ chế quản lý trạng thái tập trung và router guard mạnh mẽ.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Tôi sẽ thiết kế một `RideContext` để làm "bộ não" trung tâm cho toàn bộ dữ liệu chuyến đi, thay vì để mỗi trang tự tải dữ liệu. Vui lòng xem qua thiết kế bên dưới và phản hồi nếu bạn đồng ý.
+
+## Open Questions
+
+> [!WARNING]
+> 1. Bạn có muốn sử dụng thư viện quản lý state nào cụ thể (như Redux, Zustand) không? Hay tôi sẽ sử dụng **React Context API** (tương tự như `AuthContext` hiện tại cho đồng bộ)?
+> 2. Theo thiết kế, tôi sẽ vẫn sử dụng `activeRideId` trong `localStorage` làm "điểm neo" để fetch chi tiết chuyến đi lúc app vừa mở lên (vì Backend chưa có endpoint lấy chuyến đi active hiện tại mà không có ID). Bạn có đồng ý với cách làm này không?
+
+## Proposed Changes
+
+---
+
+### Quản lý Trạng thái Tập trung (`RideContext.jsx`)
+
+Tạo ra một State Manager dùng chung cho toàn bộ App, giúp loại bỏ tình trạng các trang lẻ tẻ phải tự fetch API.
+
+#### [NEW] `frontend/web-app/passenger-app/src/contexts/RideContext.jsx`
+#### [NEW] `frontend/web-app/driver-app/src/contexts/RideContext.jsx`
+- Khởi tạo: Đọc `activeRideId` từ localStorage, gọi API lấy dữ liệu chuyến đi.
+- Cung cấp dữ liệu `ride` hiện tại cho toàn app. Mọi thay đổi từ Socket sẽ được cập nhật thẳng vào Context này.
+- Cung cấp các hàm `updateRideState`, `clearRide`.
+
+---
+
+### Router Guard Thông minh (`ActiveRideGuard.jsx`)
+
+Cập nhật lại Controller điều hướng, bọc toàn bộ ứng dụng và chịu trách nhiệm đưa User về đúng chỗ.
+
+#### [MODIFY] `frontend/web-app/passenger-app/src/components/ActiveRideGuard.jsx`
+#### [MODIFY] `frontend/web-app/driver-app/src/components/ActiveRideGuard.jsx`
+- Xây dựng bộ **State-to-Route Mapping** cứng:
+  - Driver:
+    - `ACCEPTED`, `ARRIVED` -> `/pickup`
+    - `IN_PROGRESS`, `STARTED` -> `/ride/:id`
+  - Passenger:
+    - `ASSIGNED`, `IN_PROGRESS` -> `/ride/:id`
+    - `COMPLETED` -> `/payment/:id`
+- Logic kiểm soát (Middleware): 
+  - Đọc `ride.status` từ `RideContext`.
+  - Nếu user cố tình điều hướng vào sai màn hình (ví dụ: đang `IN_PROGRESS` nhưng bấm Back về `/pickup`), Guard sẽ lập tức bẻ lái về đúng `/ride/:id`.
+  - Nếu URL là các **vùng an toàn (safe zones)** như `/home` hoặc `/dashboard`, Guard không can thiệp, cho phép người dùng thoát ra ngoài và hiển thị banner.
+
+---
+
+### Tối giản Hóa Các Trang Tính Năng
+
+Giảm bớt sự cồng kềnh, loại bỏ các dòng code trùng lặp.
+
+#### [MODIFY] `Pickup.jsx`, `InProgress.jsx` (Driver App)
+#### [MODIFY] `RideTracking.jsx`, `SearchingDriver.jsx` (Passenger App)
+- Xoá bỏ các hàm `useEffect` tự fetch `ride` fallback.
+- Lấy thẳng thông tin chuyến đi trực tiếp từ `const { currentRide } = useRide()`.
+- Các nút "Quay về" `<` trên Top bar sẽ được cấu hình thành chuyển cứng về `navigate('/home')` hoặc `navigate('/dashboard')` thay vì lùi lại (`navigate(-1)`). Điều này đảm bảo khi người dùng bấm Back từ màn hình chuyến đi, họ luôn thoát ra trang chủ một cách an toàn, tránh bị loạn lịch sử trình duyệt.
+
+## Verification Plan
+
+### Manual Verification
+- Chạy thử 2 ứng dụng bằng tài khoản Tài xế và Hành khách.
+- Tiến hành thực hiện 1 cuốc xe hoàn chỉnh.
+- Tại mỗi giai đoạn (Đón khách, Đang chạy), cố tình bấm F5 và nút "Back" trên trình duyệt để đảm bảo ứng dụng không cho phép đi lùi vào sai luồng và không bị treo ở "Đang tải...".
+- Thoát hẳn ứng dụng (tắt tab) rồi mở lại để kiểm tra khả năng phục hồi chuyến đi đúng màn hình.

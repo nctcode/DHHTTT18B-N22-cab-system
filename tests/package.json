@@ -7,6 +7,7 @@
     "test:level1": "jest level_1_adaptive --verbose --forceExit --detectOpenHandles",
     "test:level2": "jest level_2_adaptive --verbose --forceExit --detectOpenHandles",
     "test:level3": "jest level_3_adaptive --verbose --forceExit --detectOpenHandles",
+    "test:level4": "jest level_4_adaptive --verbose --forceExit --detectOpenHandles",
     "test:ci": "jest --ci --verbose --forceExit --detectOpenHandles"
   },
   "dependencies": {

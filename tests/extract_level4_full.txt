@@ -1,0 +1,88 @@
+LEVEL 4 - TRANSACTION
+Mục tiêu: Hệ thống có giữ được 
+tính nhất quán dữ liệu không
+Transaction test đảm bảo:
+Không mất tiền,
+Không duplicate booking,
+Không trạng thái lỗi
+Điểm khó trong microservices: 
+Không có transaction global
+Phải dùng: Saga pattern, Event-
+35
+Concurrent booking (race 
+condition)
+2 request cùng lúc
+2 request booking song song
+Không tạo duplicate
+Lock hoặc conflict resolve
+System consistent
+36
+Saga transaction – success flow
+Distributed transaction (Booking → 
+Payment → Notification)
+full flow
+Tất cả bước thành công
+Saga complete
+State nhất quán
+37
+Saga transaction – failure + 
+compensation
+Payment fail sau booking
+simulate failure
+Trigger compensation
+Booking → CANCELLED
+Refund (nếu cần)
+38
+Kafka event consistency (outbox 
+pattern)
+DB update + publish event
+create booking
+DB commit và Kafka event đồng bộ
+Không mất event
+Không duplicate event
+39
+Partial failure (network issue)
+Network fail khi gọi Payment
+simulate timeout
+Retry hoặc fallback
+Không inconsistent state
+Transaction không “kẹt”
+40
+Data integrity (ACID)
+Transaction phức tạp tương ứng nhiều 
+bước DB operation
+User đặt xe → tạo booking → tính giá 
+→ thanh toán → assign driver
+Atomic: tất cả hoặc không gì cả
+Test: Simulate payment fail
+Expected:
+booking bị huỷ
+DB không có record “dang dở”
+Consistent: data hợp lệ. Sau 
+transaction, dữ liệu luôn đúng rule 
+business
+Test: Insert data sai → bị reject
+Expected: Không commit vào DB
+Isolated: không bị ảnh hưởng bởi 
+request khác. Transaction không bị 
+“ảnh hưởng” bởi transaction khác.
+Test: 2 request song song
+Expected:
+chỉ 1 thành công
+không duplicate
+Durable: commit không mất dữ liệu. 
+Khi đã commit → dữ liệu không mất.
+41
+ETA model output trong range 
+hợp lý
+Model ETA chạy bình thường
+distance = 5km
+eta > 0
+eta < ngưỡng hợp lý (ví dụ < 60 phút)
+Không trả giá trị vô lý
+42
+Pricing surge > 1 khi demand cao demand cao
+demand_index = 2
+surge > 1
+Không vượt quá max (ví dụ 3x)
+driven, Compensation

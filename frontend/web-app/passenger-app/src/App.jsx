@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { RideProvider } from './contexts/RideContext';
 
 // Pages
 import SplashScreen from './pages/SplashScreen';
@@ -18,6 +19,7 @@ import Rating from './pages/Rating';
 import RideHistory from './pages/RideHistory';
 import Profile from './pages/Profile';
 import Wallet from './pages/Wallet';
+import ActiveRideGuard from './components/ActiveRideGuard';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -33,9 +35,11 @@ function App() {
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
                 <SocketProvider>
-                    <BrowserRouter>
-                        <div className="mobile-wrapper overflow-y-auto no-scrollbar">
+                    <RideProvider>
+                        <BrowserRouter>
+                            <div className="mobile-wrapper overflow-y-auto no-scrollbar">
                             <div className="flex-1 w-full h-full relative">
+                            <ActiveRideGuard>
                                 <Routes>
                                     <Route path="/" element={<SplashScreen />} />
                                     <Route path="/login" element={<Login />} />
@@ -52,10 +56,12 @@ function App() {
                                     <Route path="/wallet" element={<Wallet />} />
                                     <Route path="*" element={<Navigate to="/" replace />} />
                                 </Routes>
+                            </ActiveRideGuard>
                             </div>
                             <Toaster position="top-center" />
                         </div>
-                    </BrowserRouter>
+                        </BrowserRouter>
+                    </RideProvider>
                 </SocketProvider>
             </AuthProvider>
         </QueryClientProvider>

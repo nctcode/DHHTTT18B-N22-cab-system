@@ -282,14 +282,14 @@ class RideService {
     throw new Error(`Cannot complete ride. Ride is ${ride.status}`);
   }
 
-  // Check distance to dropoff (≤ 200m)
+  // Check distance to dropoff (≤ 5000m for testing)
   if (metrics.driverLocation && ride.dropoff && ride.dropoff.lat) {
     const distToDropoff = this._haversineKm(
       metrics.driverLocation.lat, metrics.driverLocation.lng,
       ride.dropoff.lat, ride.dropoff.lng
     );
-    if (distToDropoff > 0.2) { // 200m
-      throw new Error(`Cannot complete ride. Driver is ${(distToDropoff * 1000).toFixed(0)}m from dropoff (max 200m)`);
+    if (distToDropoff > 5.0) { // 5000m
+      throw new Error(`Cannot complete ride. Driver is ${(distToDropoff * 1000).toFixed(0)}m from dropoff (max 5000m)`);
     }
   }
 

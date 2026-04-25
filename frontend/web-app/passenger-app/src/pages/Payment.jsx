@@ -15,6 +15,9 @@ export default function Payment() {
 
     // Join ride room for real-time socket events
     useEffect(() => {
+        // Ensure active ride is cleared since the ride is technically completed
+        localStorage.removeItem('activeRideId');
+
         const token = localStorage.getItem('accessToken');
         if (token) {
             const socket = socketService.connect(token);
