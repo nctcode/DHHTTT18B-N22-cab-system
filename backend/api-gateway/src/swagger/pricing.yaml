@@ -1,6 +1,6 @@
 # src/swagger/pricing.yaml
 paths:
-  /api/pricing/calculate:
+  /api/pricing/estimate:
     post:
       tags:
         - Pricing
@@ -15,39 +15,51 @@ paths:
             schema:
               type: object
               required:
-                - distanceKm
-                - vehicleType
+                - distance_km
+                - vehicle_type
               properties:
-                distanceKm:
+                distance_km:
                   type: number
                   format: float
                   minimum: 0.1
-                  example: 15.5
-                durationMin:
+                  example: 5.0
+                duration_min:
                   type: integer
                   minimum: 0
-                  example: 30
-                vehicleType:
+                  example: 10
+                vehicle_type:
                   type: string
-                  enum: [BIKE, CAR]
-                  example: "CAR"
-                pickup:
-                  type: object
-                  description: "Pickup location for surge detection"
-                  properties:
-                    lat:
-                      type: number
-                      format: double
-                    lng:
-                      type: number
-                      format: double
+                  example: "ECONOMY"
+                demand_index:
+                  type: number
+                  format: float
+                  description: "Explicit demand index for surge override (e.g., 0 for off-peak)"
+                  example: 0
+                supply_index:
+                  type: number
+                  format: float
+                  description: "Explicit supply index for surge override"
+                  example: 1
+                zoneId:
+                  type: string
+                  description: "Zone ID for AI Surge prediction fallback"
+                  example: "zone_123"
       responses:
         '200':
-          description: Price calculated successfully
+          description: Fare estimated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PriceResponse'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Fare estimate"
+                  data:
+                    $ref: '#/components/schemas/PriceResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
 
@@ -79,40 +91,62 @@ components:
     PriceResponse:
       type: object
       properties:
-        basePrice:
+        baseFare:
           type: number
           example: 10000
-        distancePrice:
+        distanceFare:
           type: number
           example: 30000
-        timePrice:
+        timeFare:
           type: number
           example: 15000
-        subtotal:
-          type: number
-          example: 55000
-        minFare:
-          type: number
-          example: 15000
-        finalPrice:
-          type: number
-          example: 55000
         surgeMultiplier:
           type: number
           example: 1.0
-        surgeZone:
-          type: object
-          nullable: true
-          properties:
-            name:
-              type: string
-              example: "Tân Sơn Nhất Airport"
-            multiplier:
-              type: number
-              example: 1.5
+        surgeVersion:
+          type: integer
+          example: 1
+        surgeSource:
+          type: string
+          example: "demand_supply_index"
+        totalFare:
+          type: number
+          example: 55000
         currency:
           type: string
           example: "VND"
+        breakdown:
+          type: object
+          properties:
+            vehicle_type:
+              type: string
+              example: "ECONOMY"
+            distance_km:
+              type: number
+              example: 5.0
+            duration_min:
+              type: number
+              example: 10
+            base_fare:
+              type: number
+              example: 10000
+            price_per_km:
+              type: number
+              example: 6000
+            price_per_min:
+              type: number
+              example: 1500
+            surgeApplied:
+              type: boolean
+              example: false
+            demand_index:
+              type: number
+              nullable: true
+              example: 0
+            supply_index:
+              type: number
+              nullable: true
+              example: 1
 
     PricingRule:
       type: object

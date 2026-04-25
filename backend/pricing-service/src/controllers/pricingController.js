@@ -18,16 +18,27 @@ const handleError = (res, error) => {
 class PricingController {
 
   /**
-   * GET /pricing/estimate
-   * Query params: zoneId, distance_km, duration_min, vehicle_type
+   * POST /pricing/estimate
+   * Body/Query: zoneId, distance_km, duration_min, vehicle_type, demand_index?, supply_index?
    */
   async estimate(req, res) {
     try {
+      // Helper: parse a float value, preserving undefined vs 0
+      // parseFloat("0") → 0, parseFloat(undefined) → NaN → we return undefined
+      const parseOptionalFloat = (val) => {
+        if (val === undefined || val === null || val === '') return undefined;
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? undefined : parsed;
+      };
+
       const data = {
         zoneId: req.query.zoneId || req.body.zoneId,
         distance_km: parseFloat(req.query.distance_km || req.body.distance_km),
         duration_min: parseFloat(req.query.duration_min || req.body.duration_min) || 0,
-        vehicle_type: req.query.vehicle_type || req.body.vehicle_type
+        vehicle_type: req.query.vehicle_type || req.body.vehicle_type,
+        // demand_index / supply_index: preserve 0 as valid value, undefined means "not provided"
+        demand_index: parseOptionalFloat(req.query.demand_index ?? req.body.demand_index),
+        supply_index: parseOptionalFloat(req.query.supply_index ?? req.body.supply_index),
       };
 
       const result = await pricingService.estimate(data);

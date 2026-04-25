@@ -32,6 +32,7 @@ export default function RideOptions() {
     // Calculate distance + duration from coordinates
     const [routeCoords, setRouteCoords] = useState(null);
     const [routeInfo, setRouteInfo] = useState(null);
+    const [aiTripDuration, setAiTripDuration] = useState(null);
 
     useEffect(() => {
         if (!pickupLocation || !destinationLocation) return;
@@ -135,6 +136,7 @@ export default function RideOptions() {
                 if (etaResp.data?.success) {
                     etaPrediction = etaResp.data.data;
                     console.log('🤖 AI ETA prediction:', etaPrediction);
+                    setAiTripDuration(etaPrediction.predictedTripDurationMinutes);
                 }
             } catch (etaErr) {
                 console.warn('⚠️ AI ETA service unavailable, using local fallback:', etaErr.message);
@@ -143,10 +145,10 @@ export default function RideOptions() {
             // Enrich with ETA from AI or fallback
             const enriched = estimates.map((est) => {
                 let eta;
-                if (etaPrediction?.predictedTripDurationMinutes) {
-                    // AI ETA trả về thời gian chuyến đi, tính ETA theo loại xe
+                if (etaPrediction?.predictedArrivalMinutes) {
+                    // AI ETA trả về thời gian tài xế đến đón (Arrival ETA)
                     const speedRatio = (AVG_SPEED[est.vehicleType] || 25) / 25;
-                    eta = Math.max(1, Math.round(etaPrediction.predictedTripDurationMinutes / speedRatio));
+                    eta = Math.max(1, Math.round(etaPrediction.predictedArrivalMinutes / speedRatio));
                 } else {
                     // Fallback local nếu AI ETA hoàn toàn không khả dụng
                     eta = Math.max(1, Math.round((routeInfo.distance_km / (AVG_SPEED[est.vehicleType] || 25)) * 60));
@@ -157,6 +159,7 @@ export default function RideOptions() {
                     distance_km: routeInfo.distance_km,
                     duration_min: routeInfo.duration_min,
                     etaSource: etaPrediction ? (etaPrediction.source || 'ai') : 'local',
+                    aiTripDuration: etaPrediction?.predictedTripDurationMinutes || null,
                 };
             });
 
@@ -261,7 +264,7 @@ export default function RideOptions() {
                         <h1 className="text-lg font-bold text-gray-900">Chọn loại xe</h1>
                         {routeInfo && (
                             <p className="text-xs text-gray-500">
-                                {Number(routeInfo.distance_km).toFixed(1)} km • ~{Math.round(routeInfo.duration_min)} phút
+                                {Number(routeInfo.distance_km).toFixed(1)} km • ~{Math.round(aiTripDuration || routeInfo.duration_min)} phút
                             </p>
                         )}
                     </div>
@@ -349,7 +352,7 @@ export default function RideOptions() {
                                 <div className="flex items-center justify-between mb-1">
                                     <span className="text-sm text-gray-500">Giá dự kiến</span>
                                     <button
-                                        onClick={() => setBreakdownData(selectedOption)}
+                                        onClick={() => setBreakdownData({ ...selectedOption, aiTripDuration })}
                                         className="text-xs text-primary font-medium hover:underline"
                                     >
                                         Xem chi tiết

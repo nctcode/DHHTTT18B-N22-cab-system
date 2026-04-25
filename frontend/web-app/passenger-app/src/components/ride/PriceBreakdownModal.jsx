@@ -7,7 +7,7 @@ export default function PriceBreakdownModal({ data, onClose }) {
     const rows = [
         { label: 'Phí cơ bản', value: data.baseFare, icon: '🏷️' },
         { label: `Khoảng cách (${breakdown.distance_km?.toFixed(1) || '?'} km)`, value: data.distanceFare, icon: '📏' },
-        { label: `Thời gian (${breakdown.duration_min?.toFixed(0) || '?'} phút)`, value: data.timeFare, icon: '⏱️' },
+        { label: `Thời gian (${data.aiTripDuration ? Math.round(data.aiTripDuration) : (breakdown.duration_min?.toFixed(0) || '?')} phút)`, value: data.timeFare, icon: '⏱️' },
     ];
 
     return (
