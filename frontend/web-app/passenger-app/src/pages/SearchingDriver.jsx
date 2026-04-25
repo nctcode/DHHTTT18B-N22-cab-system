@@ -100,7 +100,10 @@ export default function SearchingDriver() {
             console.log('😞 No drivers available:', data);
             if (data.bookingId === bookingId) {
                 toast.error('Không tìm thấy tài xế gần bạn. Vui lòng thử lại sau.', { duration: 5000 });
-                setTimeout(() => navigate('/home'), 3000);
+                setTimeout(() => {
+                    clearRide();
+                    navigate('/home');
+                }, 3000);
             }
         };
 

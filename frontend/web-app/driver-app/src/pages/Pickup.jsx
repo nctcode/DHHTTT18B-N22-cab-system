@@ -10,12 +10,12 @@ import { useRide } from '../contexts/RideContext';
 export default function Pickup() {
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     const { currentRide: ride, loading, clearRide, updateRideState } = useRide();
     const { bookingId, driverPosition: initialDriverPos } = location.state || {};
 
     const [driverPosition, setDriverPosition] = useState(initialDriverPos || [10.7769, 106.7009]);
-    const [arrived, setArrived] = useState(false);
+    const [arrived, setArrived] = useState(ride?.status === 'ARRIVED');
     const [arrivedLoading, setArrivedLoading] = useState(false);
     const [routeCoords, setRouteCoords] = useState(null);
     const [realtimeDistance, setRealtimeDistance] = useState(null);
@@ -41,6 +41,13 @@ export default function Pickup() {
                 .catch(err => console.error('Failed to fetch passenger profile:', err));
         }
     }, [ride?.passengerId, passenger.name]);
+
+    // Sync arrived state with ride status (e.g. on back navigation or socket update)
+    useEffect(() => {
+        if (ride?.status === 'ARRIVED' && !arrived) {
+            setArrived(true);
+        }
+    }, [ride?.status, arrived]);
 
     // Simulation state
     const [isSimulating, setIsSimulating] = useState(false);
@@ -218,6 +225,7 @@ export default function Pickup() {
             setArrivedLoading(true);
             await rideService.arriveRide(ride._id);
             setArrived(true);
+            updateRideState({ ...ride, status: 'ARRIVED' });
             toast.success('✅ Đã tới điểm đón! Chờ khách lên xe.');
         } catch (error) {
             console.error('Arrive error:', error);

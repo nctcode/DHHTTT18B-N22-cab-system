@@ -1,10 +1,17 @@
 const Booking = require('../models/booking.model');
 const axios = require('axios');
 const rabbitmq = require('../messaging/rabbitmq');
-const { setOfferTimeout, clearOfferTimeout } = require('./booking.timeout');
+const { 
+  setOfferTimeout, 
+  clearOfferTimeout, 
+  setGlobalSearchTimeout, 
+  clearGlobalSearchTimeout,
+  clearAllBookingTimeouts 
+} = require('./booking.timeout');
 
 const DRIVER_SERVICE_URL = process.env.DRIVER_SERVICE_URL || 'http://localhost:3003';
 const OFFER_TIMEOUT_MS = 10000; // 10 seconds per driver offer
+const GLOBAL_SEARCH_TIMEOUT_MS = 15000; // 15 seconds total search time
 
 /** Haversine distance in km between two {lat,lng} points */
 function haversineKm(lat1, lng1, lat2, lng2) {
@@ -116,8 +123,15 @@ class BookingService {
           // Start offering to drivers sequentially
           await this.offerToNextDriver(savedBooking._id.toString());
         } else {
-          console.log('⚠️ No nearby drivers found');
+          console.log('⚠️ No nearby drivers found initially');
+          savedBooking.status = 'SEARCHING';
+          await savedBooking.save();
         }
+
+        // Set global search timeout for all cases
+        setGlobalSearchTimeout(savedBooking._id.toString(), GLOBAL_SEARCH_TIMEOUT_MS, async (bId) => {
+          await this.handleGlobalTimeout(bId);
+        });
       }
     } catch (err) {
       console.warn('⚠️ Driver matching error:', err.message);
@@ -247,6 +261,7 @@ class BookingService {
     }
 
     if (accepted) {
+      clearGlobalSearchTimeout(bookingId);
       // Find the accepted candidate to get prisma driverId
       const acceptedCandidate = booking.candidateDrivers.find(
         c => c.userId === driverUserId && c.status === 'ACCEPTED'
@@ -307,6 +322,40 @@ class BookingService {
     console.log(`❌ Driver ${driverUserId} ${reason} booking ${bookingId}, trying next...`);
     await this.offerToNextDriver(bookingId);
     return booking;
+  }
+
+  /**
+   * Handle global search timeout for a booking.
+   */
+  async handleGlobalTimeout(bookingId) {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return;
+
+    // Only timeout if still in a searching state
+    if (!['PENDING', 'SEARCHING'].includes(booking.status)) {
+        console.log(`🕒 Global timeout ignored for booking ${bookingId} (status: ${booking.status})`);
+        return;
+    }
+
+    console.log(`🕒 Global search timeout reached for booking ${bookingId}. Setting to NO_DRIVER_FOUND`);
+    
+    // Clear any pending offer timeout
+    clearOfferTimeout(bookingId);
+
+    booking.status = 'NO_DRIVER_FOUND';
+    await booking.save();
+
+    // Notify passenger
+    await rabbitmq.publish(
+      rabbitmq.config.exchanges.bookingEvents,
+      'booking.noDrivers',
+      {
+        bookingId: booking._id.toString(),
+        userId: booking.passengerId,
+        status: 'NO_DRIVER_FOUND',
+        timestamp: new Date().toISOString(),
+      }
+    );
   }
 
   /**
@@ -409,8 +458,8 @@ class BookingService {
        throw error;
     }
 
-    // Clear any pending offer timeout
-    clearOfferTimeout(id);
+    // Clear all pending timeouts
+    clearAllBookingTimeouts(id);
 
     booking.status = 'CANCELLED';
     const saved = await booking.save();

@@ -31,6 +31,12 @@ const initRedis = async () => {
  */
 const checkTokenRevocation = async (req, res, next) => {
   try {
+    // Skip revocation check for auth endpoints that must always be accessible
+    const exemptPaths = ['/api/auth/logout', '/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
+    if (exemptPaths.some(path => req.path === path || req.originalUrl === path)) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -44,28 +50,14 @@ const checkTokenRevocation = async (req, res, next) => {
       await initRedis();
     }
 
-    // Decode token to get user ID (without verification, just for blacklist check)
-    const jwt = require('jsonwebtoken');
-    let userId;
-    
-    try {
-      const decoded = jwt.decode(token);
-      userId = decoded?.id;
-    } catch (error) {
-      // If token can't be decoded, let auth middleware handle it
-      return next();
-    }
-
-    if (!userId) {
-      return next();
-    }
-
-    // Check blacklist pattern
-    const blacklistKey = `blacklist:access:${userId}:${token.substring(0, 20)}`;
+    // Use hash of the full token as the blacklist key
+    const crypto = require('crypto');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const blacklistKey = `blacklist:access:${tokenHash}`;
     const isBlacklisted = await redisClient.exists(blacklistKey);
     
     if (isBlacklisted) {
-      console.warn(`🚫 [TOKEN REVOKED] User ${userId} attempted to use revoked token`);
+      console.warn(`🚫 [TOKEN REVOKED] Attempted to use revoked token (hash: ${tokenHash.substring(0, 8)}...)`);
       
       return res.status(401).json({
         success: false,
@@ -78,7 +70,6 @@ const checkTokenRevocation = async (req, res, next) => {
   } catch (error) {
     console.error('[TOKEN REVOCATION] Check error:', error);
     // Don't block request if Redis is down - fail open for availability
-    // In production, you might want to fail closed instead
     next();
   }
 };

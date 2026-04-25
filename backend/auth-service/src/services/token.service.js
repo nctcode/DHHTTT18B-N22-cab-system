@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const authModel = require('../models/auth.model'); // Use Auth Model for DB operations
+const { getRedisClient } = require('../config/redis');
 
 // Token configuration
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
@@ -171,6 +172,58 @@ const revokeAllUserTokens = async (userId) => {
     return result.count;
 };
 
+/**
+ * Blacklist an access token in Redis
+ */
+const blacklistToken = async (token, userId, type = 'access') => {
+  try {
+    const redisClient = getRedisClient();
+    if (!redisClient) {
+      console.warn('⚠️ Redis client not available, skipping token blacklist');
+      return;
+    }
+
+    if (type === 'access') {
+      const decoded = jwt.decode(token);
+      if (!decoded) return;
+      
+      const exp = decoded.exp;
+      const now = Math.floor(Date.now() / 1000);
+      const ttl = exp - now;
+
+      // Only blacklist if token hasn't expired yet
+      if (ttl > 0) {
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const blacklistKey = `blacklist:access:${tokenHash}`;
+        await redisClient.setEx(blacklistKey, ttl, 'true');
+        console.log(`🚫 Access token blacklisted for user ${userId} for ${ttl}s (hash: ${tokenHash.substring(0, 8)}...)`);
+      }
+    }
+  } catch (err) {
+    console.error('Error blacklisting token:', err);
+  }
+};
+
+/**
+ * Check if a token is blacklisted in Redis
+ */
+const isTokenBlacklisted = async (token, type = 'access') => {
+  try {
+    if (type !== 'access') return false;
+    
+    const redisClient = getRedisClient();
+    if (!redisClient) return false;
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const blacklistKey = `blacklist:access:${tokenHash}`;
+    const exists = await redisClient.exists(blacklistKey);
+    return exists === 1;
+  } catch (err) {
+    console.error('Error checking token blacklist:', err);
+    return false; // Fail open
+  }
+};
+
 module.exports = {
   generateAccessToken,
   generateRefreshToken,
@@ -178,6 +231,8 @@ module.exports = {
   verifyRefreshToken,
   rotateRefreshToken,
   revokeToken,
-  revokeAllUserTokens
+  revokeAllUserTokens,
+  blacklistToken,
+  isTokenBlacklisted
 };
 

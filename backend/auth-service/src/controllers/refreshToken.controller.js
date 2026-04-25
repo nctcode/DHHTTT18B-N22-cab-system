@@ -85,23 +85,39 @@ exports.revoke = async (req, res) => {
 };
 
 /**
- * Logout - revoke current refresh token
+ * Logout - revoke current refresh token and blacklist access token
  */
 exports.logout = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
+    // Access token: forwarded by API Gateway as x-access-token header
+    // (because the proxy overwrites Authorization with the refresh token)
+    const accessToken = req.headers['x-access-token'] || null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token required for logout'
-      });
+    // Refresh token: from body or from Authorization header (set by proxy)
+    const authHeader = req.headers.authorization;
+    const refreshToken = req.body?.refreshToken || 
+      (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+
+    // 1. Revoke the refresh token
+    if (refreshToken) {
+      try {
+        await tokenService.revokeToken(refreshToken);
+      } catch (err) {
+        // Ignore errors if refresh token already revoked or not found
+        console.warn('Refresh token revocation skipped:', err.message);
+      }
     }
 
-    const token = authHeader.substring(7);
-
-    // Revoke the refresh token
-    await tokenService.revokeToken(token);
+    // 2. Blacklist the access token
+    if (accessToken) {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.decode(accessToken);
+      if (decoded && (decoded.userId || decoded.sub)) {
+        const userId = decoded.userId || decoded.sub;
+        await tokenService.blacklistToken(accessToken, userId, 'access');
+        console.log(`🚫 Access token blacklisted for user ${userId}`);
+      }
+    }
 
     return res.json({
       success: true,

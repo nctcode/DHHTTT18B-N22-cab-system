@@ -19,14 +19,22 @@ const publicAuthProxy = createProxyMiddleware({
     '^/api/auth': '/auth',
   },
   onProxyReq: (proxyReq, req, res) => {
-    // 1. Handle Refresh Token Flow (Body -> Header mapping)
+    // 1. For logout: preserve original access token before overwriting
+    if (req.path === '/logout' || req.originalUrl.endsWith('/logout')) {
+      const originalAuth = req.headers.authorization;
+      if (originalAuth && originalAuth.startsWith('Bearer ')) {
+        proxyReq.setHeader('x-access-token', originalAuth.substring(7));
+      }
+    }
+
+    // 2. Handle Refresh Token Flow (Body -> Header mapping)
     // Auth Service expects Authorization: Bearer <refreshToken>
     // But Client sends { refreshToken: "..." } in body
     if (req.body && req.body.refreshToken) {
       proxyReq.setHeader('Authorization', `Bearer ${req.body.refreshToken}`);
     }
 
-    // 2. Forward Request Body
+    // 3. Forward Request Body
     // bodyParser consumes the stream, so we must write it back
     if (req.body && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const bodyData = JSON.stringify(req.body);

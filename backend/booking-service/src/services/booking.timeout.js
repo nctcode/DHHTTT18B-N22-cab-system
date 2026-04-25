@@ -1,47 +1,81 @@
 /**
- * In-memory offer timeout manager for sequential driver matching.
- * Tracks pending offer timeouts per booking and auto-rejects on expiry.
+ * In-memory timeout manager for sequential driver matching.
+ * Tracks pending offer timeouts and global search timeouts per booking.
  */
 
-const activeTimeouts = new Map(); // bookingId → timeoutId
+const offerTimeouts = new Map(); // bookingId → timeoutId
+const globalTimeouts = new Map(); // bookingId → timeoutId
 
 /**
- * Set a timeout for a booking offer.
+ * Set a timeout for a single driver offer.
  * @param {String} bookingId
  * @param {Number} ms - Timeout in milliseconds (default 10s)
  * @param {Function} onExpire - Callback when offer expires
  */
 function setOfferTimeout(bookingId, ms = 10000, onExpire) {
-  clearOfferTimeout(bookingId); // Clear any existing timeout first
+  clearOfferTimeout(bookingId);
   const timeoutId = setTimeout(() => {
-    activeTimeouts.delete(bookingId);
+    offerTimeouts.delete(bookingId);
     console.log(`⏰ Offer timeout for booking ${bookingId}`);
     if (onExpire) onExpire(bookingId);
   }, ms);
-  activeTimeouts.set(bookingId, timeoutId);
+  offerTimeouts.set(bookingId, timeoutId);
   console.log(`⏳ Set ${ms}ms offer timeout for booking ${bookingId}`);
 }
 
 /**
- * Clear timeout for a booking (on accept, reject, or cancel).
- * @param {String} bookingId
+ * Clear offer timeout for a booking.
  */
 function clearOfferTimeout(bookingId) {
-  const timeoutId = activeTimeouts.get(bookingId);
+  const timeoutId = offerTimeouts.get(bookingId);
   if (timeoutId) {
     clearTimeout(timeoutId);
-    activeTimeouts.delete(bookingId);
+    offerTimeouts.delete(bookingId);
     console.log(`🔕 Cleared offer timeout for booking ${bookingId}`);
   }
 }
 
 /**
- * Check if a booking has a pending offer timeout.
+ * Set a global search timeout for the entire booking process.
  * @param {String} bookingId
- * @returns {Boolean}
+ * @param {Number} ms - Global timeout in milliseconds (default 15s)
+ * @param {Function} onExpire - Callback when global timeout expires
  */
-function hasActiveOffer(bookingId) {
-  return activeTimeouts.has(bookingId);
+function setGlobalSearchTimeout(bookingId, ms = 15000, onExpire) {
+  clearGlobalSearchTimeout(bookingId);
+  const timeoutId = setTimeout(() => {
+    globalTimeouts.delete(bookingId);
+    console.log(`🕒 GLOBAL search timeout for booking ${bookingId}`);
+    if (onExpire) onExpire(bookingId);
+  }, ms);
+  globalTimeouts.set(bookingId, timeoutId);
+  console.log(`🌎 Set ${ms}ms global search timeout for booking ${bookingId}`);
 }
 
-module.exports = { setOfferTimeout, clearOfferTimeout, hasActiveOffer };
+/**
+ * Clear global search timeout for a booking.
+ */
+function clearGlobalSearchTimeout(bookingId) {
+  const timeoutId = globalTimeouts.get(bookingId);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    globalTimeouts.delete(bookingId);
+    console.log(`🚫 Cleared global search timeout for booking ${bookingId}`);
+  }
+}
+
+/**
+ * Clear all timeouts for a booking (on matched or cancelled).
+ */
+function clearAllBookingTimeouts(bookingId) {
+  clearOfferTimeout(bookingId);
+  clearGlobalSearchTimeout(bookingId);
+}
+
+module.exports = { 
+  setOfferTimeout, 
+  clearOfferTimeout, 
+  setGlobalSearchTimeout, 
+  clearGlobalSearchTimeout,
+  clearAllBookingTimeouts
+};
