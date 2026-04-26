@@ -79,10 +79,22 @@ export const pricingService = {
         })
       )
     );
-    return types.map((vt, i) => ({
-      vehicleType: vt,
-      ...(results[i].status === 'fulfilled' ? results[i].value.data?.data || {} : { error: true }),
-    }));
+    return types.map((vt, i) => {
+      if (results[i].status === 'fulfilled') {
+        const responseData = results[i].value.data?.data || {};
+        // Detect fallback response from API Gateway
+        if (responseData.isFallback) {
+          return {
+            vehicleType: vt,
+            isFallback: true,
+            totalFare: null,
+            message: responseData.message || 'Giá tạm thời không khả dụng',
+          };
+        }
+        return { vehicleType: vt, ...responseData, isFallback: false };
+      }
+      return { vehicleType: vt, error: true };
+    });
   },
 
   // Get surge pricing info

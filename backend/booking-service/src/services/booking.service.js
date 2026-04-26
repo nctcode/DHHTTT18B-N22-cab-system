@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/booking.model');
 const axios = require('axios');
 const rabbitmq = require('../messaging/rabbitmq');
@@ -26,23 +27,58 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 class BookingService {
   /**
+   * Helper: Adaptive Transaction execution
+   * Detects if MongoDB is a ReplicaSet/Sharded cluster. If standalone, falls back to non-session operations.
+   */
+  async _withTransaction(operationName, callback) {
+    let isReplicaSet = false;
+    try {
+      const topology = mongoose.connection.client?.topology?.description?.type 
+                    || mongoose.connection.client?.topology?.s?.description?.type;
+      isReplicaSet = topology && (topology.includes('ReplicaSet') || topology === 'Sharded');
+    } catch (e) {}
+
+    if (!isReplicaSet) {
+      console.warn(`[Transaction] ⚠️ MongoDB is Standalone. Running ${operationName} WITHOUT ACID Transaction.`);
+      return await callback(null); // Run without session
+    }
+
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+      console.log(`[Transaction] Started for ${operationName}`);
+      const result = await callback(session);
+      await session.commitTransaction();
+      console.log(`[Transaction] ✅ COMMITTED ${operationName}`);
+      return result;
+    } catch (error) {
+      await session.abortTransaction();
+      console.error(`[Transaction] ❌ ABORTED ${operationName}: ${error.message}`);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  /**
    * Create a new booking + start sequential driver matching
+   * 
+   * TRANSACTION SAFETY:
+   * Uses adaptive transaction. RabbitMQ events are only published AFTER successful commit.
    */
   async createBooking(passengerId, data) {
     console.log('[BOOKING SERVICE] createBooking input payload:', JSON.stringify(data));
 
-    // ── IDEMPOTENCY CHECK ──
-    // Time bucket: 60-second window to catch double-tap, but allow re-booking same route later
+    // ── IDEMPOTENCY CHECK (read-only, no session needed) ──
     const timeBucket = Math.floor(Date.now() / 60000);
     const idempotencyKey = data.idempotencyKey || 
       `${passengerId}_${data.pickup?.lat?.toFixed(4)}_${data.pickup?.lng?.toFixed(4)}_${data.dropoff?.lat?.toFixed(4)}_${data.dropoff?.lng?.toFixed(4)}_${timeBucket}`;
 
-    // Check for any active booking from this passenger with same route (within last 60 seconds)
     const recentDuplicate = await Booking.findOne({
       passengerId,
       idempotencyKey,
       status: { $in: ['PENDING', 'SEARCHING', 'MATCHED', 'CONFIRMED', 'IN_PROGRESS'] },
-      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }  // within 60s
+      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }
     });
 
     if (recentDuplicate) {
@@ -50,64 +86,79 @@ class BookingService {
       return recentDuplicate;
     }
 
-    const booking = new Booking({
-      passengerId,
-      idempotencyKey,
-      pickup: data.pickup,
-      dropoff: data.dropoff,
-      vehicleType: data.vehicleType,
-      estimatedPrice: data.estimatedPrice,
-      paymentMethod: data.paymentMethod || 'CASH',
-      status: 'PENDING',
-      route: data.route
-    });
+    // Events to publish AFTER successful commit (Transactional Outbox pattern)
+    const pendingEvents = [];
+    let savedBooking = null;
 
-    const savedBooking = await booking.save();
-
-    // Publish booking.created event
-    await rabbitmq.publish(
-      rabbitmq.config.exchanges.bookingEvents,
-      'booking.created',
-      {
-        bookingId: savedBooking._id.toString(),
-        userId: passengerId,
-        pickup: data.pickup,
-        dropoff: data.dropoff,
-        vehicleType: data.vehicleType,
-        estimatedPrice: data.estimatedPrice,
-        paymentMethod: data.paymentMethod || 'CASH',
-        status: 'PENDING',
-        route: data.route,
-        timestamp: new Date().toISOString(),
-      }
-    );
-
-    // ── Sequential Driver Matching ──
+    // ══════════════════════════════════════════════════════════
+    //  TRANSACTION BLOCK (Adaptive)
+    // ══════════════════════════════════════════════════════════
     try {
-      // Normalize pickup location
-      let pickupLocation = data.pickupCoords || data.pickup;
-      if (Array.isArray(pickupLocation)) {
-        pickupLocation = { lat: pickupLocation[0], lng: pickupLocation[1] };
-      }
-      console.log(`📍 Pickup location for matching:`, pickupLocation);
+      savedBooking = await this._withTransaction('createBooking', async (session) => {
+        // Option object for save/update operations
+        const opts = session ? { session } : {};
 
-      if (pickupLocation?.lat && pickupLocation?.lng) {
-        // Query nearby online drivers sorted by distance ASC, rating DESC
-        const driversResp = await axios.get(`${DRIVER_SERVICE_URL}/drivers/nearby`, {
-          params: {
-            lat: pickupLocation.lat,
-            lng: pickupLocation.lng,
-            radius: 10,
-            limit: 20,
-          },
-          timeout: 5000,
+        // ── Step 1: Create and save booking ──
+        const booking = new Booking({
+          passengerId,
+          idempotencyKey,
+          pickup: data.pickup,
+          dropoff: data.dropoff,
+          vehicleType: data.vehicleType,
+          estimatedPrice: data.estimatedPrice,
+          paymentMethod: data.paymentMethod || 'CASH',
+          status: 'PENDING',
+          route: data.route
         });
-        const nearbyDrivers = driversResp.data?.data || [];
-        console.log(`📋 Nearby drivers: ${nearbyDrivers.length}`);
 
+        const saved = await booking.save(opts);
+        console.log(`[Transaction] Booking ${saved._id} saved with status PENDING`);
+
+        // Queue the booking.created event
+        pendingEvents.push({
+          exchange: rabbitmq.config.exchanges.bookingEvents,
+          routingKey: 'booking.created',
+          data: {
+            bookingId: saved._id.toString(),
+            userId: passengerId,
+            pickup: data.pickup,
+            dropoff: data.dropoff,
+            vehicleType: data.vehicleType,
+            estimatedPrice: data.estimatedPrice,
+            paymentMethod: data.paymentMethod || 'CASH',
+            status: 'PENDING',
+            route: data.route,
+            timestamp: new Date().toISOString(),
+          }
+        });
+
+        // ── Step 2: Fetch nearby drivers (external API call, read-only) ──
+        let nearbyDrivers = [];
+        try {
+          let pickupLocation = data.pickupCoords || data.pickup;
+          if (Array.isArray(pickupLocation)) {
+            pickupLocation = { lat: pickupLocation[0], lng: pickupLocation[1] };
+          }
+          if (pickupLocation?.lat && pickupLocation?.lng) {
+            const driversResp = await axios.get(`${DRIVER_SERVICE_URL}/drivers/nearby`, {
+              params: {
+                lat: pickupLocation.lat,
+                lng: pickupLocation.lng,
+                radius: 10,
+                limit: 20,
+              },
+              timeout: 5000,
+            });
+            nearbyDrivers = driversResp.data?.data || [];
+            console.log(`📋 Nearby drivers: ${nearbyDrivers.length}`);
+          }
+        } catch (err) {
+          console.warn('⚠️ Driver service call failed (non-critical):', err.message);
+        }
+
+        // ── Step 3: Update booking with driver candidates ──
         if (nearbyDrivers.length > 0) {
-          // Save candidate list to booking
-          savedBooking.candidateDrivers = nearbyDrivers.map(d => ({
+          saved.candidateDrivers = nearbyDrivers.map(d => ({
             driverId: d.id,
             userId: d.user_id,
             distance: d.distance_km,
@@ -116,25 +167,53 @@ class BookingService {
             vehiclePlate: d.vehicle_plate,
             status: 'PENDING',
           }));
-          savedBooking.currentOfferIndex = -1;
-          savedBooking.status = 'SEARCHING';
-          await savedBooking.save();
-
-          // Start offering to drivers sequentially
-          await this.offerToNextDriver(savedBooking._id.toString());
+          saved.currentOfferIndex = -1;
         } else {
-          console.log('⚠️ No nearby drivers found initially');
-          savedBooking.status = 'SEARCHING';
-          await savedBooking.save();
+          console.log('⚠️ No nearby drivers found initially, status set to SEARCHING');
         }
+        saved.status = 'SEARCHING';
 
-        // Set global search timeout for all cases
+        await saved.save(opts);
+        console.log(`[Transaction] Booking ${saved._id} updated to status ${saved.status}`);
+
+        return saved;
+      });
+    } catch (error) {
+      console.error(`[BookingService] Failed to create booking: ${error.message}`);
+      throw error;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  POST-COMMIT: Publish events and start async processes.
+    // ══════════════════════════════════════════════════════════
+
+    for (const event of pendingEvents) {
+      try {
+        await rabbitmq.publish(event.exchange, event.routingKey, event.data);
+        console.log(`[Post-Commit] Published ${event.routingKey}`);
+      } catch (err) {
+        console.error(`[Post-Commit] ⚠️ Failed to publish ${event.routingKey}:`, err.message);
+      }
+    }
+
+    // Start driver matching (async, non-transactional)
+    if (savedBooking?.candidateDrivers?.length > 0) {
+      try {
+        await this.offerToNextDriver(savedBooking._id.toString());
+      } catch (err) {
+        console.warn('⚠️ Driver offer initiation failed (non-critical):', err.message);
+      }
+    }
+
+    // Set global search timeout
+    try {
+      if (savedBooking) {
         setGlobalSearchTimeout(savedBooking._id.toString(), GLOBAL_SEARCH_TIMEOUT_MS, async (bId) => {
           await this.handleGlobalTimeout(bId);
         });
       }
     } catch (err) {
-      console.warn('⚠️ Driver matching error:', err.message);
+      console.warn('⚠️ Global search timeout setup failed:', err.message);
     }
 
     return savedBooking;
@@ -458,26 +537,43 @@ class BookingService {
        throw error;
     }
 
-    // Clear all pending timeouts
-    clearAllBookingTimeouts(id);
+    // ── TRANSACTION BLOCK (Adaptive) ──
+    let saved = null;
+    try {
+      saved = await this._withTransaction('cancelBooking', async (session) => {
+        const opts = session ? { session } : {};
+        
+        // Clear all pending timeouts
+        clearAllBookingTimeouts(id);
 
-    booking.status = 'CANCELLED';
-    const saved = await booking.save();
+        booking.status = 'CANCELLED';
+        const savedBooking = await booking.save(opts);
+        return savedBooking;
+      });
+    } catch (error) {
+      console.error(`[BookingService] Failed to cancel booking: ${error.message}`);
+      throw error;
+    }
 
-    // Publish booking.cancelled event — use driverUserId for socket room targeting
-    await rabbitmq.publish(
-      rabbitmq.config.exchanges.bookingEvents,
-      'booking.cancelled',
-      {
-        bookingId: saved._id.toString(),
-        userId: passengerId,
-        driverId: saved.driverUserId || null,
-        // Also notify currently offered driver (if any)
-        currentOfferedDriverUserId: this._getCurrentOfferedDriverUserId(saved),
-        status: 'CANCELLED',
-        timestamp: new Date().toISOString(),
+    // POST-COMMIT: Publish cancellation event
+    try {
+      if (saved) {
+        await rabbitmq.publish(
+          rabbitmq.config.exchanges.bookingEvents,
+          'booking.cancelled',
+          {
+            bookingId: saved._id.toString(),
+            userId: passengerId,
+            driverId: saved.driverUserId || null,
+            currentOfferedDriverUserId: this._getCurrentOfferedDriverUserId(saved),
+            status: 'CANCELLED',
+            timestamp: new Date().toISOString(),
+          }
+        );
       }
-    );
+    } catch (err) {
+      console.error(`[Post-Commit] ⚠️ Failed to publish booking.cancelled:`, err.message);
+    }
 
     return saved;
   }

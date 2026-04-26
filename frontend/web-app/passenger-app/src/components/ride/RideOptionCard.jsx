@@ -59,6 +59,10 @@ export default function RideOptionCard({ data, selected, onSelect, onViewBreakdo
             {/* Price */}
             {isError ? (
                 <p className="text-sm text-red-400 font-medium">Không khả dụng</p>
+            ) : data.isFallback || data.totalFare == null ? (
+                <p className="text-sm text-amber-500 font-medium animate-pulse">
+                    Đang cập nhật giá...
+                </p>
             ) : (
                 <p className="font-bold text-primary text-lg">
                     {data.totalFare?.toLocaleString('vi-VN')} <span className="text-xs font-normal">₫</span>

@@ -359,10 +359,18 @@ export default function RideOptions() {
                                     </button>
                                 </div>
                                 <div className="flex items-baseline gap-1">
-                                    <span className="text-2xl font-bold text-gray-900">
-                                        {selectedOption.totalFare?.toLocaleString('vi-VN')}
-                                    </span>
-                                    <span className="text-sm text-gray-500">₫</span>
+                                    {selectedOption.isFallback || selectedOption.totalFare == null ? (
+                                        <span className="text-base font-medium text-amber-500 animate-pulse">
+                                            Giá tạm thời không khả dụng
+                                        </span>
+                                    ) : (
+                                        <>
+                                            <span className="text-2xl font-bold text-gray-900">
+                                                {selectedOption.totalFare?.toLocaleString('vi-VN')}
+                                            </span>
+                                            <span className="text-sm text-gray-500">₫</span>
+                                        </>
+                                    )}
                                 </div>
                                 {selectedOption.surgeMultiplier > 1 && (
                                     <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
@@ -398,7 +406,10 @@ export default function RideOptions() {
                                 className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-blue-500/25"
                             >
                                 Xác nhận {selectedOption?.vehicleType || ''} •{' '}
-                                {selectedOption?.totalFare?.toLocaleString('vi-VN') || '...'} ₫
+                                {selectedOption?.isFallback || selectedOption?.totalFare == null
+                                    ? 'Giá cập nhật sau'
+                                    : `${selectedOption?.totalFare?.toLocaleString('vi-VN')} ₫`
+                                }
                             </Button>
                         </div>
                     </>

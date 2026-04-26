@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const services = require('../config/services.config');
+const { callPricingWithRetry } = require('../utils/pricingRetry');
 
 const router = express.Router();
 
@@ -80,22 +81,29 @@ router.post('/context', async (req, res) => {
       console.warn(`[MCP] Driver failed:`, driversResult.reason?.message || 'Unknown error');
     }
 
-    // 2. Sequential Dependent Call: Pricing
+    // 2. Sequential Dependent Call: Pricing (with retry + fallback)
     // We only call pricing if we have distance and duration
     if (context.distance_km !== null && context.duration_min !== null) {
-      try {
-        const pricingResult = await axios.post(`${services.pricing.url}/pricing/estimate`, {
-          distance_km: context.distance_km,
-          duration_min: context.duration_min,
-          vehicle_type: 'ECONOMY' // Default vehicle type to get a single price
-        }, { timeout: 5000 });
-        
-        if (pricingResult.data?.success) {
-          context.price = pricingResult.data.data?.totalFare || null;
-          console.log(`[MCP] Pricing success: ${context.price} VND`);
-        }
-      } catch (pricingError) {
-        console.warn(`[MCP] Pricing failed:`, pricingError.message);
+      const pricingPayload = {
+        distance_km: context.distance_km,
+        duration_min: context.duration_min,
+        vehicle_type: 'ECONOMY' // Default vehicle type to get a single price
+      };
+
+      const pricingResult = await callPricingWithRetry(
+        pricingPayload,
+        services.pricing.url
+      );
+
+      if (pricingResult.isFallback) {
+        context.price = null;
+        context.pricingFallback = true;
+        context.pricingMessage = pricingResult.data.message;
+        console.log(`[MCP] Pricing fallback activated: ${pricingResult.data.message}`);
+      } else {
+        context.price = pricingResult.data?.totalFare || pricingResult.data?.price || null;
+        context.pricingFallback = false;
+        console.log(`[MCP] Pricing success: ${context.price} VND`);
       }
     } else {
       console.warn(`[MCP] Skipping Pricing: distance_km or duration_min missing.`);
