@@ -62,7 +62,7 @@ export const RideProvider = ({ children }) => {
         setCurrentRide(null);
         localStorage.removeItem('driverActiveRideId');
         // Clean up legacy keys if they exist
-        localStorage.removeItem('driverRideState'); 
+        localStorage.removeItem('driverRideState');
     }, []);
 
     const value = {

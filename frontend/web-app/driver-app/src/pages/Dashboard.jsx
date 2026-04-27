@@ -288,10 +288,10 @@ export default function Dashboard() {
             }
 
             localStorage.setItem('driverActiveRideId', acceptedRide._id);
-            
+
             // Critical: Update the context before navigating so ActiveRideGuard doesn't kick us out
             await fetchRide(acceptedRide._id);
-            
+
             navigate('/pickup', {
                 state: {
                     ride: acceptedRide,
@@ -410,8 +410,8 @@ export default function Dashboard() {
 
                     {/* Active Ride Banner */}
                     {currentRide && !['COMPLETED', 'CANCELLED', 'NO_DRIVER_FOUND', 'FAILED', 'PAYMENT_FAILED', 'CANCELLED_BY_DRIVER'].includes(currentRide.status) && (
-                        <div 
-                            className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors" 
+                        <div
+                            className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-sm flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors"
                             onClick={() => {
                                 const route = resolveRouteFromState(currentRide.status, 'DRIVER', currentRide._id || currentRide.id);
                                 if (route) navigate(route);

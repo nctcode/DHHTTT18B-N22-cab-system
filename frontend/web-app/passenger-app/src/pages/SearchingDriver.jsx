@@ -15,7 +15,7 @@ export default function SearchingDriver() {
     const { user } = useAuth();
     const { currentRide: booking, loading, clearRide, fetchRide } = useRide();
     const bookingId = booking?._id || booking?.id;
-    
+
     const { pickupCoords: navPickupCoords } = location.state || {};
     const [nearbyDrivers, setNearbyDrivers] = useState([]);
     const [driver, setDriver] = useState(null);
@@ -53,7 +53,7 @@ export default function SearchingDriver() {
             if (data.driver) {
                 setDriver(data.driver);
             }
-            
+
             if (data.rideId) {
                 localStorage.setItem('activeRideId', data.rideId);
             }
@@ -143,7 +143,7 @@ export default function SearchingDriver() {
             if (bookingIdToCancel) {
                 await bookingService.cancelBooking(bookingIdToCancel);
             }
-            
+
             clearRide();
             toast.error('Đã hủy tìm chuyến xe', { id: 'cancel_search' });
             navigate('/home', { replace: true });
@@ -163,7 +163,7 @@ export default function SearchingDriver() {
             </div>
         );
     }
-    
+
     if (!booking) return null;
 
     return (

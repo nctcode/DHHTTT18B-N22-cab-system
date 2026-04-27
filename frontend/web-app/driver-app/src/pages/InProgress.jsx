@@ -11,7 +11,7 @@ export default function InProgress() {
     const navigate = useNavigate();
     const { id } = useParams();
     const location = useLocation();
-    
+
     const { currentRide: ride, loading, clearRide, updateRideState } = useRide();
     const { bookingId, driverPosition: initialPos } = location.state || {};
 
@@ -326,7 +326,7 @@ export default function InProgress() {
                 <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-lg p-3 animate-slideDown">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <button 
+                            <button
                                 onClick={() => navigate('/dashboard')}
                                 className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                             >

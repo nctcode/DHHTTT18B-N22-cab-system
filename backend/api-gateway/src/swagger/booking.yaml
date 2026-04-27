@@ -1,20 +1,24 @@
-openapi: 3.0.0
-info:
-  title: Booking Service API
-  description: API for managing ride bookings (requests)
-  version: 1.0.0
-
-tags:
-  - name: Bookings
-    description: Manage ride bookings
-
 paths:
   /api/bookings:
     post:
+      tags:
+        - Bookings
       summary: Create a new booking
-      tags: [Bookings]
+      description: Create a booking and start driver matching flow
       security:
-        - bearerAuth: []
+        - BearerAuth: []
+      parameters:
+        - in: header
+          name: x-simulate-fail-after-insert
+          required: false
+          schema:
+            type: string
+            enum: ['1']
+          example: '1'
+          description: >
+            Test-only header. When value is "1" and NODE_ENV is not production,
+            booking-service simulates failure right after first insert (PENDING)
+            to validate transaction rollback. Ignored in production.
       requestBody:
         required: true
         content:
@@ -28,124 +32,192 @@ paths:
                 - estimatedPrice
               properties:
                 pickup:
-                  $ref: '#/components/schemas/Location'
+                  $ref: '#/components/schemas/BookingLocation'
                 dropoff:
-                  $ref: '#/components/schemas/Location'
+                  $ref: '#/components/schemas/BookingLocation'
                 vehicleType:
                   type: string
-                  enum: [BIKE, CAR, PREMIUM]
-                  example: BIKE
+                  enum: [BIKE, CAR, PREMIUM, ECONOMY, SUV]
+                  example: ECONOMY
                 estimatedPrice:
                   type: number
                   example: 50000
+                paymentMethod:
+                  type: string
+                  enum: [CASH, WALLET, CARD]
+                  example: CASH
+                idempotencyKey:
+                  type: string
+                  description: Optional deduplication key
+                  example: passenger_1_10.7620_106.6600_10.8230_106.6290_28543210
+                route:
+                  $ref: '#/components/schemas/BookingRoute'
       responses:
         '201':
           description: Booking created successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    $ref: '#/components/schemas/Booking'
+                $ref: '#/components/schemas/ApiSuccessBooking'
         '400':
           description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal error (includes simulated failure in non-production)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                message: SIMULATED_FAIL_AFTER_INSERT
 
-  /api/bookings/my:
+  /api/bookings/my-bookings:
     get:
+      tags:
+        - Bookings
       summary: Get current user's bookings
-      tags: [Bookings]
+      description: Return all bookings of authenticated passenger sorted by newest first
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       responses:
         '200':
           description: List of bookings
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Booking'
+                $ref: '#/components/schemas/ApiSuccessBookingList'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
   /api/bookings/{id}:
     get:
+      tags:
+        - Bookings
       summary: Get booking details by ID
-      tags: [Bookings]
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       parameters:
         - in: path
           name: id
+          required: true
+          description: MongoDB ObjectId of booking
           schema:
             type: string
-          required: true
-          description: Booking ID
+            example: 66492c4864a7e95ecfded111
       responses:
         '200':
           description: Booking details
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    $ref: '#/components/schemas/Booking'
+                $ref: '#/components/schemas/ApiSuccessBooking'
         '403':
-          description: Access denied (Not owner or admin)
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '404':
           description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
   /api/bookings/{id}/cancel:
     patch:
+      tags:
+        - Bookings
       summary: Cancel a booking
-      tags: [Bookings]
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       parameters:
         - in: path
           name: id
+          required: true
+          description: MongoDB ObjectId of booking
           schema:
             type: string
-          required: true
+            example: 66492c4864a7e95ecfded111
       responses:
         '200':
           description: Booking cancelled successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    $ref: '#/components/schemas/Booking'
+                $ref: '#/components/schemas/ApiSuccessBooking'
         '400':
-          description: Cannot cancel booking (wrong status)
+          description: Cannot cancel booking in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '403':
           description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 
 components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
   schemas:
-    Location:
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Booking not found
+
+    ApiSuccessBooking:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/BookingData'
+
+    ApiSuccessBookingList:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingData'
+
+    BookingLocation:
       type: object
       required:
         - lat
@@ -160,31 +232,140 @@ components:
           example: 106.660172
         address:
           type: string
-          example: "123 Nguyen Van Linh, District 7, HCMC"
+          example: 123 Nguyen Van Linh, District 7, HCMC
 
-    Booking:
+    BookingRoute:
       type: object
       properties:
-        id:
+        distanceKm:
+          type: number
+          example: 7.2
+        durationMin:
+          type: number
+          example: 18
+        polyline:
+          type: array
+          description: Route polyline as list of [lat, lng]
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: number
+
+    BookingCandidateDriver:
+      type: object
+      properties:
+        driverId:
           type: string
-          example: "booking_12345"
-        passengerId:
+          example: 0d8f2d54-b16a-4f3d-b6f4-0dbaf9f77711
+        userId:
           type: string
-          description: ID of the passenger (from JWT)
-          example: "user_uuid_123"
-        pickup:
-          $ref: '#/components/schemas/Location'
-        dropoff:
-          $ref: '#/components/schemas/Location'
+          example: 2b1476f7-e83d-4789-a149-9287f61c1038
+        distance:
+          type: number
+          example: 1.3
+        rating:
+          type: number
+          example: 4.9
         vehicleType:
           type: string
-          enum: [BIKE, CAR, PREMIUM]
-        estimatedPrice:
-          type: number
+          example: CAR
+        vehiclePlate:
+          type: string
+          example: 51H-12345
         status:
           type: string
-          enum: [PENDING, CONFIRMED, CANCELLED]
-          example: "PENDING"
+          enum: [PENDING, OFFERED, ACCEPTED, REJECTED, TIMEOUT, CANCELLED]
+          example: PENDING
+
+    BookingData:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+          example: 66492c4864a7e95ecfded111
+        id:
+          type: string
+          description: Virtual id string if serializer exposes it
+          example: 66492c4864a7e95ecfded111
+        passengerId:
+          type: string
+          example: 3dfd55db-3743-4356-8992-6274c5a0ba93
+        pickup:
+          $ref: '#/components/schemas/BookingLocation'
+        dropoff:
+          $ref: '#/components/schemas/BookingLocation'
+        vehicleType:
+          type: string
+          enum: [BIKE, CAR, PREMIUM, ECONOMY, SUV]
+          example: ECONOMY
+        estimatedPrice:
+          type: number
+          example: 50000
+        idempotencyKey:
+          type: string
+          nullable: true
+          example: 3dfd55db_10.7620_106.6600_10.8230_106.6290_28543210
+        status:
+          type: string
+          enum:
+            - PENDING
+            - SEARCHING
+            - MATCHED
+            - CONFIRMED
+            - IN_PROGRESS
+            - COMPLETED
+            - CANCELLED
+            - NO_DRIVER_FOUND
+            - FAILED
+            - PAYMENT_FAILED
+          example: SEARCHING
+        paymentMethod:
+          type: string
+          enum: [CASH, WALLET, CARD]
+          example: CASH
+        paymentStatus:
+          type: string
+          enum: [UNPAID, PENDING, PAID, FAILED]
+          example: UNPAID
+        assignedDriverId:
+          type: string
+          nullable: true
+          example: null
+        driverUserId:
+          type: string
+          nullable: true
+          example: null
+        matchScore:
+          type: number
+          nullable: true
+          example: null
+        matchConfidence:
+          type: number
+          nullable: true
+          example: null
+        candidateDrivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingCandidateDriver'
+        currentOfferIndex:
+          type: integer
+          example: -1
+        offerExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        failureReason:
+          type: string
+          nullable: true
+          example: null
+        route:
+          allOf:
+            - $ref: '#/components/schemas/BookingRoute'
+          nullable: true
         createdAt:
           type: string
           format: date-time

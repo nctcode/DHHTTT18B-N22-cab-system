@@ -117,6 +117,7 @@ services:
   mongodb:
     image: mongo:7
     container_name: cab-booking-mongodb
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
     ports:
       - "27017:27017"
     volumes:
@@ -128,6 +129,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mongodb-rs-init:
+    image: mongo:7
+    container_name: cab-booking-mongodb-rs-init
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - cab-network
+    restart: "no"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mongosh --host mongodb:27017 --eval '
+          try {
+            rs.status();
+            print("Replica set already initialized");
+          } catch (e) {
+            rs.initiate({_id: "rs0", members: [{ _id: 0, host: "mongodb:27017" }]});
+            print("Replica set initiated");
+          }
+        '
 
   redis:
     image: redis:7-alpine
@@ -305,6 +329,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      mongodb-rs-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       rabbitmq:

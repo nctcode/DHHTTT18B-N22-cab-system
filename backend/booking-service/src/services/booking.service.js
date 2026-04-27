@@ -27,20 +27,52 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 
 class BookingService {
   /**
-   * Helper: Adaptive Transaction execution
-   * Detects if MongoDB is a ReplicaSet/Sharded cluster. If standalone, falls back to non-session operations.
+   * Transaction policy:
+   * - ENABLE_TRANSACTION=true|false
+   * - REQUIRE_TRANSACTIONS=true|false
+   *
+   * SAFE MODE  (default): ENABLE_TRANSACTION=true,  REQUIRE_TRANSACTIONS=false
+   * STRICT MODE(test/stg): ENABLE_TRANSACTION=true, REQUIRE_TRANSACTIONS=true
    */
-  async _withTransaction(operationName, callback) {
-    let isReplicaSet = false;
-    try {
-      const topology = mongoose.connection.client?.topology?.description?.type 
-                    || mongoose.connection.client?.topology?.s?.description?.type;
-      isReplicaSet = topology && (topology.includes('ReplicaSet') || topology === 'Sharded');
-    } catch (e) {}
+  _getTransactionPolicy() {
+    return {
+      enabled: process.env.ENABLE_TRANSACTION !== 'false',
+      requireTransactions: process.env.REQUIRE_TRANSACTIONS === 'true',
+    };
+  }
 
-    if (!isReplicaSet) {
-      console.warn(`[Transaction] ⚠️ MongoDB is Standalone. Running ${operationName} WITHOUT ACID Transaction.`);
-      return await callback(null); // Run without session
+  _isTransactionSupported() {
+    try {
+      const topology = mongoose.connection.client?.topology?.description?.type
+                    || mongoose.connection.client?.topology?.s?.description?.type
+                    || '';
+
+      return topology.includes('ReplicaSet') || topology === 'Sharded';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async _withTransaction(operationName, callback) {
+    const policy = this._getTransactionPolicy();
+
+    if (!policy.enabled) {
+      console.warn(`[Transaction][SAFE] ${operationName}: ENABLE_TRANSACTION=false -> running without transaction.`);
+      return await callback(null);
+    }
+
+    const canUseTransaction = this._isTransactionSupported();
+    if (!canUseTransaction) {
+      const reason = `[Transaction] ${operationName}: Mongo topology does not support transaction.`;
+
+      if (policy.requireTransactions) {
+        const error = new Error(`${reason} REQUIRE_TRANSACTIONS=true -> fail-fast.`);
+        error.code = 'TRANSACTION_REQUIRED_BUT_UNAVAILABLE';
+        throw error;
+      }
+
+      console.warn(`${reason} Fallback SAFE MODE (without session).`);
+      return await callback(null);
     }
 
     const session = await mongoose.startSession();
@@ -52,11 +84,13 @@ class BookingService {
       console.log(`[Transaction] ✅ COMMITTED ${operationName}`);
       return result;
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       console.error(`[Transaction] ❌ ABORTED ${operationName}: ${error.message}`);
       throw error;
     } finally {
-      session.endSession();
+      await session.endSession();
     }
   }
 
@@ -66,7 +100,7 @@ class BookingService {
    * TRANSACTION SAFETY:
    * Uses adaptive transaction. RabbitMQ events are only published AFTER successful commit.
    */
-  async createBooking(passengerId, data) {
+  async createBooking(passengerId, data, options = {}) {
     console.log('[BOOKING SERVICE] createBooking input payload:', JSON.stringify(data));
 
     // ── IDEMPOTENCY CHECK (read-only, no session needed) ──
@@ -114,7 +148,18 @@ class BookingService {
         const saved = await booking.save(opts);
         console.log(`[Transaction] Booking ${saved._id} saved with status PENDING`);
 
-        // Queue the booking.created event
+        // Failure injection (test-only path from controller), right after insert and before commit.
+        if (options.simulateFailAfterInsert) {
+          if (session) {
+            const injectedError = new Error('SIMULATED_FAIL_AFTER_INSERT');
+            injectedError.code = 'SIMULATED_FAIL_AFTER_INSERT';
+            throw injectedError;
+          }
+
+          console.warn('[Transaction][SAFE] simulateFailAfterInsert ignored because no active transaction session.');
+        }
+
+        // Queue the booking.created event (post-commit publish)
         pendingEvents.push({
           exchange: rabbitmq.config.exchanges.bookingEvents,
           routingKey: 'booking.created',

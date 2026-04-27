@@ -236,3 +236,57 @@ For questions or support, please open an issue or contact the maintainers.
 ⭐ Star this repo if you find it useful!
 
 
+## 🔁 Booking Transaction Rollback (Safe/Strict Modes)
+
+### Transaction Modes
+
+- **SAFE MODE (default production):**
+  - `ENABLE_TRANSACTION=true`
+  - `REQUIRE_TRANSACTIONS=false`
+  - Nếu Mongo chưa hỗ trợ transaction, service fallback không-session và log warning.
+
+- **STRICT MODE (test/staging):**
+  - `ENABLE_TRANSACTION=true`
+  - `REQUIRE_TRANSACTIONS=true`
+  - Nếu Mongo không hỗ trợ transaction, service fail-fast (`TRANSACTION_REQUIRED_BUT_UNAVAILABLE`).
+
+### Test-only Failure Injection
+
+- Header trigger: `x-simulate-fail-after-insert: 1`
+- Chỉ hoạt động khi `NODE_ENV !== 'production'`
+- Điểm inject lỗi: ngay sau bước `await booking.save({ session })`
+
+Flow kỳ vọng khi strict transaction:
+
+1. Start transaction
+2. Insert booking (trong session)
+3. Simulate lỗi -> throw
+4. Abort transaction
+5. Không emit event `booking.created`
+
+### Rollback Test Script
+
+- File: `tests/test_booking_tx_rollback_after_insert.js`
+- Script npm: `npm --prefix tests run test:tx-rollback`
+
+Lệnh chạy strict mode (PowerShell):
+
+```powershell
+$env:ENABLE_TRANSACTION='true'
+$env:REQUIRE_TRANSACTIONS='true'
+node tests/test_booking_tx_rollback_after_insert.js
+```
+
+Log bắt buộc của test:
+
+- `simulate lỗi sau bước tạo booking`
+- `Transaction rollback`
+- `Không có booking trong DB`
+- `System consistent`
+
+### Zero-downtime Rollout Strategy
+
+1. Deploy code trước trong SAFE MODE (không phá API contract).
+2. Bật Mongo Replica Set (`rs0`) và verify ổn định.
+3. Chạy test rollback ở staging với STRICT MODE.
+4. Chỉ bật STRICT MODE ở production khi đã qua canary/quan sát đầy đủ.

@@ -3,10 +3,17 @@ const bookingService = require('../services/booking.service');
 exports.createBooking = async (req, res) => {
   try {
     const passengerId = req.user.id;
-    const booking = await bookingService.createBooking(passengerId, req.body);
+    const simulateFailAfterInsert =
+      process.env.NODE_ENV !== 'production' &&
+      req.headers['x-simulate-fail-after-insert'] === '1';
+
+    const booking = await bookingService.createBooking(passengerId, req.body, {
+      simulateFailAfterInsert,
+    });
+
     res.status(201).json({ success: true, data: booking });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 };
 

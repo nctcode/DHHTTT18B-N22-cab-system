@@ -65,11 +65,11 @@ paths:
                 email:
                   type: string
                   format: email
-                  example: "nguyenvana@example.com"
+                  example: "khach@gmail.com"
                 password:
                   type: string
                   format: password
-                  example: "password123"
+                  example: "123456"
       responses:
         '200':
           description: Login successful
