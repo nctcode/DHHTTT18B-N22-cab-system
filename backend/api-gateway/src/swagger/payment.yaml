@@ -4,7 +4,10 @@ paths:
     post:
       tags:
         - Payments
-      summary: Create payment for ride
+      summary: Create payment (manual trigger for saga)
+      description: >
+        Tạo yêu cầu xử lý payment theo flow saga. Endpoint này nhận payload đầu vào,
+        sau đó payment-service publish event nội bộ để xử lý async.
       security:
         - BearerAuth: []
       requestBody:
@@ -12,36 +15,24 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - rideId
-                - passengerId
-                - amount
-                - method
-              properties:
-                rideId:
-                  type: string
-                  description: MongoDB ObjectId
-                passengerId:
-                  type: string
-                  description: Passenger ID
-                amount:
-                  type: number
-                  format: float
-                method:
-                  type: string
-                  enum: [CASH, MOMO, VNPAY, CREDIT_CARD]
+              $ref: '#/components/schemas/CreatePaymentRequest'
       responses:
         '201':
-          description: Payment created successfully
+          description: Payment processing started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 
   /api/payments/{id}:
     get:
       tags:
         - Payments
-      summary: Get payment by ID
+      summary: Get payment by id
       security:
         - BearerAuth: []
       parameters:
@@ -51,9 +42,14 @@ paths:
           schema:
             type: string
             format: uuid
+          description: Payment UUID
       responses:
         '200':
           description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
         '404':
           $ref: '#/components/responses/NotFoundError'
 
@@ -61,7 +57,7 @@ paths:
     get:
       tags:
         - Payments
-      summary: Get payments by ride ID
+      summary: Get payments by ride id
       security:
         - BearerAuth: []
       parameters:
@@ -70,15 +66,20 @@ paths:
           required: true
           schema:
             type: string
+          description: Ride ObjectId
       responses:
         '200':
-          description: Payment details
+          description: Payments of a ride
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiListResponse'
 
   /api/payments/passenger/{passengerId}:
     get:
       tags:
         - Payments
-      summary: Get payments by passenger ID
+      summary: Get payments by passenger id
       security:
         - BearerAuth: []
       parameters:
@@ -87,15 +88,20 @@ paths:
           required: true
           schema:
             type: string
+          description: Passenger UUID
       responses:
         '200':
-          description: Payment details
+          description: Passenger payments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiListResponse'
 
   /api/payments/{id}/success:
     patch:
       tags:
         - Payments
-      summary: Mark payment as SUCCESS
+      summary: Force payment to SUCCESS (admin/manual)
       security:
         - BearerAuth: []
       parameters:
@@ -107,13 +113,17 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Payment success
+          description: Payment succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
 
   /api/payments/{id}/fail:
     patch:
       tags:
         - Payments
-      summary: Mark payment as FAILED
+      summary: Force payment to FAILED (admin/manual)
       security:
         - BearerAuth: []
       parameters:
@@ -126,12 +136,16 @@ paths:
       responses:
         '200':
           description: Payment failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
 
   /api/payments/{id}/refund:
     patch:
       tags:
         - Payments
-      summary: Mark payment as REFUNDED
+      summary: Mark payment as REFUNDED (admin/manual)
       security:
         - BearerAuth: []
       parameters:
@@ -144,33 +158,167 @@ paths:
       responses:
         '200':
           description: Payment refunded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
+
+  /api/payments/{rideId}/retry:
+    post:
+      tags:
+        - Payments
+      summary: Retry a FAILED payment by ride id
+      description: >
+        Đặt payment hiện tại về PENDING và publish PAYMENT_RETRY_REQUESTED.
+        Dùng cho case FAILED nhưng chưa rơi vào terminal rollback trên frontend.
+        Payment-service truyền stable PSP idempotency key theo payment record,
+        giúp các lần retry không tạo double charge tại provider (ví dụ Stripe).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: rideId
+          required: true
+          schema:
+            type: string
+          description: Ride ObjectId
+      responses:
+        '200':
+          description: Retry initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentApiResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
 
 components:
   schemas:
-    Payment:
+    CreatePaymentRequest:
+      type: object
+      required:
+        - rideId
+        - passengerId
+        - amount
+        - method
+      properties:
+        rideId:
+          type: string
+          description: Ride ObjectId
+          example: "66492c4864a7e95ecfded222"
+        passengerId:
+          type: string
+          description: Passenger UUID
+          example: "3dfd55db-3743-4356-8992-6274c5a0ba93"
+        amount:
+          type: number
+          format: float
+          example: 42000
+        method:
+          type: string
+          enum: [CARD, CASH, WALLET, MOMO, VNPAY, CREDIT_CARD]
+          example: CARD
+
+    PaymentData:
       type: object
       properties:
         id:
           type: string
           format: uuid
-        rideId:
+          example: "8f5b3f77-f4f3-4f8a-9d8a-9f2434f1d8a5"
+        ride_id:
           type: string
-        passengerId:
+          example: "66492c4864a7e95ecfded222"
+        passenger_id:
           type: string
+          example: "3dfd55db-3743-4356-8992-6274c5a0ba93"
+        driver_id:
+          type: string
+          nullable: true
+          example: null
         amount:
           type: number
-        method:
+          example: 42000
+        payment_method:
           type: string
-          enum: [CASH, MOMO, VNPAY, CREDIT_CARD]
+          enum: [CASH, CARD]
+          example: CARD
         status:
           type: string
           enum: [PENDING, SUCCESS, FAILED, REFUNDED]
-        createdAt:
+          example: FAILED
+        retry_count:
+          type: integer
+          example: 3
+        idempotency_key:
+          type: string
+          nullable: true
+          example: "66492c4864a7e95ecfded222:66492c4864a7e95ecfded111"
+        saga_status:
+          type: string
+          nullable: true
+          enum: [STARTED, CHARGE_SUCCESS, CHARGE_FAILED, WALLET_CREDITED, COMPENSATED, RETRY_EXHAUSTED]
+          example: RETRY_EXHAUSTED
+        psp_reference:
+          type: string
+          nullable: true
+          example: "pi_3Qx123456789"
+        created_at:
           type: string
           format: date-time
-        updatedAt:
+        updated_at:
           type: string
           format: date-time
+
+    PaymentApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Payment details
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/PaymentData'
+            - type: object
+              properties:
+                message:
+                  type: string
+                  example: Payment processing started
+                status:
+                  type: string
+                  example: PENDING
+                rideId:
+                  type: string
+                  example: "66492c4864a7e95ecfded222"
+
+    PaymentApiListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Ride payments
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentData'
+
+    PaymentErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Payment not found
+        data:
+          nullable: true
 
   responses:
     ValidationError:
@@ -178,25 +326,19 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              message:
-                type: string
+            $ref: '#/components/schemas/PaymentErrorResponse'
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaymentErrorResponse'
     NotFoundError:
       description: Resource not found
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              message:
-                type: string
+            $ref: '#/components/schemas/PaymentErrorResponse'
 
   securitySchemes:
     BearerAuth:

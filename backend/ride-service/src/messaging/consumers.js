@@ -69,9 +69,34 @@ const handlePaymentFailed = async (event) => {
   console.log(`[RideService] Payment failed for ride ${event.rideId}`);
   try {
     const Ride = require('../models/ride.model');
-    await Ride.findByIdAndUpdate(event.rideId, { paymentStatus: 'FAILED' });
+    const ride = await Ride.findByIdAndUpdate(
+      event.rideId,
+      { paymentStatus: 'FAILED' },
+      { new: true }
+    );
+
+    const bookingId = event.bookingId || ride?.bookingId || null;
+
+    await rabbitmq.publish(
+      rabbitmq.config.exchanges.paymentEvents,
+      'payment.failed',
+      {
+        eventId: event.eventId || `${Date.now()}-payment-failed-compensation`,
+        type: 'PaymentFailed',
+        rideId: event.rideId,
+        bookingId,
+        userId: event.userId,
+        driverId: event.driverId,
+        paymentMethod: event.paymentMethod,
+        paymentStatus: 'FAILED',
+        reason: event.error || 'Payment transaction failed',
+        timestamp: new Date().toISOString(),
+      }
+    );
+
+    console.log(`[RideService] Published payment.failed for booking ${bookingId || 'N/A'} (ride ${event.rideId})`);
   } catch (error) {
-    console.error('Error updating ride payment status (FAILED):', error);
+    console.error('Error handling ride.payment.failed compensation:', error);
   }
 };
 

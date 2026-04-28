@@ -7,11 +7,17 @@ exports.createBooking = async (req, res) => {
       process.env.NODE_ENV !== 'production' &&
       req.headers['x-simulate-fail-after-insert'] === '1';
 
-    const booking = await bookingService.createBooking(passengerId, req.body, {
+    const headerIdempotencyKey = req.headers['idempotency-key'];
+
+    const bookingResult = await bookingService.createBooking(passengerId, req.body, {
       simulateFailAfterInsert,
+      idempotencyKey: headerIdempotencyKey,
     });
 
-    res.status(201).json({ success: true, data: booking });
+    const replayed = Boolean(bookingResult?.replayed);
+    const booking = bookingResult?.booking || bookingResult;
+
+    res.status(replayed ? 200 : 201).json({ success: true, data: booking });
   } catch (error) {
     res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }

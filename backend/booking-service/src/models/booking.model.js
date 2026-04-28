@@ -82,4 +82,15 @@ const BookingSchema = new mongoose.Schema({
   versionKey: false
 });
 
+BookingSchema.index(
+  { passengerId: 1, idempotencyKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      idempotencyKey: { $type: 'string' },
+    },
+    name: 'uniq_passenger_idempotency_key',
+  }
+);
+
 module.exports = mongoose.model('Booking', BookingSchema);

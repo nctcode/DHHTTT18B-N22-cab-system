@@ -18,6 +18,7 @@ const handleRidePaymentProcess = async (event) => {
     // Forward to local EventBus for PaymentSaga to handle
     eventBus.publish(EVENTS.RIDE_FINISHED, {
         rideId: event.rideId,
+        bookingId: event.bookingId,
         passengerId: event.passengerId,
         driverId: event.driverId,
         amount: event.amount,

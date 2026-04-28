@@ -8,6 +8,7 @@ const config = {
   exchanges: {
     bookingEvents: 'booking.events',
     rideEvents: 'ride.events',
+    paymentEvents: 'payment.events',
     reviewEvents: 'review.events',
     deadLetter: 'dlx.exchange',
   },
@@ -24,6 +25,7 @@ const connect = async () => {
     
     await channel.assertExchange(config.exchanges.bookingEvents, 'topic', { durable: true });
     await channel.assertExchange(config.exchanges.rideEvents, 'topic', { durable: true });
+    await channel.assertExchange(config.exchanges.paymentEvents, 'topic', { durable: true });
     await channel.assertExchange(config.exchanges.reviewEvents, 'topic', { durable: true });
 
     // Dead Letter Exchange + Queue

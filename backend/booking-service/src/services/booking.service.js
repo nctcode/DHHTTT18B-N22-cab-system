@@ -103,21 +103,30 @@ class BookingService {
   async createBooking(passengerId, data, options = {}) {
     console.log('[BOOKING SERVICE] createBooking input payload:', JSON.stringify(data));
 
-    // ── IDEMPOTENCY CHECK (read-only, no session needed) ──
+    // ── IDEMPOTENCY KEY RESOLUTION (priority: header -> body -> generated) ──
+    const normalizedHeaderKey =
+      typeof options.idempotencyKey === 'string' && options.idempotencyKey.trim()
+        ? options.idempotencyKey.trim()
+        : null;
+
+    const normalizedBodyKey =
+      typeof data.idempotencyKey === 'string' && data.idempotencyKey.trim()
+        ? data.idempotencyKey.trim()
+        : null;
+
     const timeBucket = Math.floor(Date.now() / 60000);
-    const idempotencyKey = data.idempotencyKey || 
-      `${passengerId}_${data.pickup?.lat?.toFixed(4)}_${data.pickup?.lng?.toFixed(4)}_${data.dropoff?.lat?.toFixed(4)}_${data.dropoff?.lng?.toFixed(4)}_${timeBucket}`;
+    const generatedIdempotencyKey = `${passengerId}_${data.pickup?.lat?.toFixed(4)}_${data.pickup?.lng?.toFixed(4)}_${data.dropoff?.lat?.toFixed(4)}_${data.dropoff?.lng?.toFixed(4)}_${timeBucket}`;
 
-    const recentDuplicate = await Booking.findOne({
-      passengerId,
-      idempotencyKey,
-      status: { $in: ['PENDING', 'SEARCHING', 'MATCHED', 'CONFIRMED', 'IN_PROGRESS'] },
-      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }
-    });
+    const idempotencyKey = normalizedHeaderKey || normalizedBodyKey || generatedIdempotencyKey;
 
-    if (recentDuplicate) {
-      console.log(`[IDEMPOTENCY] Duplicate booking detected for passenger ${passengerId}, returning existing booking ${recentDuplicate._id}`);
-      return recentDuplicate;
+    // Strict replay: if key already exists for this passenger, always return existing record
+    const existingDuplicate = await Booking.findOne({ passengerId, idempotencyKey });
+    if (existingDuplicate) {
+      console.log(`[IDEMPOTENCY] Replay booking for passenger ${passengerId}, existing booking ${existingDuplicate._id}`);
+      return {
+        booking: existingDuplicate,
+        replayed: true,
+      };
     }
 
     // Events to publish AFTER successful commit (Transactional Outbox pattern)
@@ -224,6 +233,17 @@ class BookingService {
         return saved;
       });
     } catch (error) {
+      if (error?.code === 11000 && error?.keyPattern?.passengerId && error?.keyPattern?.idempotencyKey) {
+        console.warn(`[IDEMPOTENCY] Duplicate key race detected for passenger ${passengerId}, resolving by replay`);
+        const replayedBooking = await Booking.findOne({ passengerId, idempotencyKey });
+        if (replayedBooking) {
+          return {
+            booking: replayedBooking,
+            replayed: true,
+          };
+        }
+      }
+
       console.error(`[BookingService] Failed to create booking: ${error.message}`);
       throw error;
     }
@@ -261,7 +281,10 @@ class BookingService {
       console.warn('⚠️ Global search timeout setup failed:', err.message);
     }
 
-    return savedBooking;
+    return {
+      booking: savedBooking,
+      replayed: false,
+    };
   }
 
   /**

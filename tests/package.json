@@ -9,9 +9,11 @@
     "test:level3": "jest level_3_adaptive --verbose --forceExit --detectOpenHandles",
     "test:level4": "jest level_4_adaptive --verbose --forceExit --detectOpenHandles",
     "test:tx-rollback": "node test_booking_tx_rollback_after_insert.js",
+    "test:payment-rollback": "node test_payment_failure_rollback.js",
     "test:ci": "jest --ci --verbose --forceExit --detectOpenHandles"
   },
   "dependencies": {
+    "amqplib": "^0.10.4",
     "axios": "^1.6.0",
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.3"

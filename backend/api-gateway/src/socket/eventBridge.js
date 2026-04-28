@@ -355,6 +355,18 @@ const handleBookingEvent = (event, routingKey) => {
       }
       break;
 
+    // ── Payment failed compensation: booking rolled back ──
+    case 'booking.payment_failed':
+      if (userId) {
+        io.to(`user:${userId}`).emit('booking:paymentFailed', {
+          bookingId,
+          status: event.status || 'FAILED',
+          reason: event.reason || 'Payment transaction failed',
+        });
+        console.log(`📤 [WebSocket] Emitted booking:paymentFailed to user:${userId}`);
+      }
+      break;
+
     // ── Rematching: driver cancelled, searching for new driver ──
     case 'booking.rematching':
       if (userId) {

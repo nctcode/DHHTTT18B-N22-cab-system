@@ -277,22 +277,37 @@ async function testTX5_Idempotency() {
     dropoff: { lat: 10.333, lng: 106.444, address: 'TC-TX5 Idem Dropoff' },
   });
 
-  const res1 = await api.post('/api/bookings', payload, auth(state.tokenB));
-  const res2 = await api.post('/api/bookings', payload, auth(state.tokenB));
+  const idempotencyKey = `tc-tx5-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const authHeaders = auth(state.tokenB);
+  const requestConfig = {
+    ...authHeaders,
+    headers: {
+      ...authHeaders.headers,
+      'Idempotency-Key': idempotencyKey,
+    },
+  };
+
+  const res1 = await api.post('/api/bookings', payload, requestConfig);
+  const res2 = await api.post('/api/bookings', payload, requestConfig);
 
   log('📦', `Request 1: HTTP ${res1.status}`);
   log('📦', `Request 2: HTTP ${res2.status}`);
 
-  if (![200, 201].includes(res1.status)) {
-    log('⏭️', 'SKIPPED - First booking failed');
+  if (res1.status !== 201) {
+    log('⏭️', 'SKIPPED - First booking did not create a new resource as expected');
     return { name: 'TC-TX5', status: 'SKIPPED' };
+  }
+
+  if (res2.status !== 200) {
+    log('❌', `FAILED - Replay request expected HTTP 200 but got ${res2.status}`);
+    return { name: 'TC-TX5', status: 'FAILED', reason: `replay-http-${res2.status}` };
   }
 
   const id1 = res1.data.data?._id || res1.data.data?.id;
   const id2 = res2.data.data?._id || res2.data.data?.id;
 
   if (id1 === id2) {
-    log('✅', `PASSED - Duplicate detected! Both return same booking ${id1}`);
+    log('✅', `PASSED - Duplicate replay returned same booking ${id1}`);
     return { name: 'TC-TX5', status: 'PASSED', id: id1 };
   } else {
     log('❌', `FAILED - Different IDs: ${id1} vs ${id2} (duplicate not detected)`);

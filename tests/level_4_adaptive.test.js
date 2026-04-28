@@ -129,14 +129,25 @@ describe('LEVEL 4 - Transaction & Data Consistency (TC31 → TC40)', () => {
         dropoff: { lat: 11.0, lng: 11.0, address: 'Idem' },
         vehicleType: 'CAR', estimatedPrice: 100, paymentMethod: 'CASH',
       };
-      const res1 = await api.post('/api/bookings', payload, auth(state.tokenA));
-      const res2 = await api.post('/api/bookings', payload, auth(state.tokenA));
+      const idempotencyKey = `tc34-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      const authHeaders = auth(state.tokenA);
+      const requestConfig = {
+        ...authHeaders,
+        headers: {
+          ...authHeaders.headers,
+          'Idempotency-Key': idempotencyKey,
+        },
+      };
+
+      const res1 = await api.post('/api/bookings', payload, requestConfig);
+      const res2 = await api.post('/api/bookings', payload, requestConfig);
       expect(res1.status).toBe(201);
-      expect([200, 201]).toContain(res2.status);
+      expect(res2.status).toBe(200);
       const id1 = res1.data.data?.id || res1.data.data?._id;
       const id2 = res2.data.data?.id || res2.data.data?._id;
       expect(id1).toBe(id2);
-      console.log(`  ✅ TC34 PASS - Concurrent duplicate transaction guarded securely`);
+      console.log(`  ✅ TC34 PASS - Idempotency-Key replay returned same booking ${id1}`);
     });
   });
 

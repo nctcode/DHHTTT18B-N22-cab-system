@@ -3,11 +3,34 @@ paths:
     post:
       tags:
         - Bookings
-      summary: Create a new booking
-      description: Create a booking and start driver matching flow
+      summary: Create a new booking (idempotent + race-safe)
+      description: |
+        Create a booking and start driver matching flow.
+
+        ## Test idempotency / race condition in Swagger
+        1. Authorize a PASSENGER token.
+        2. Use the same booking payload and same `Idempotency-Key` value.
+        3. Send 2 requests at nearly the same time (two browser tabs/windows of Swagger UI).
+
+        Expected behavior:
+        - System does **not** create duplicate bookings for the same passenger + key.
+        - One request usually returns `201` (created).
+        - The other request returns either:
+          - `200` with replayed booking data (same booking id), or
+          - `500` transient transaction conflict message (still no duplicate persisted).
       security:
         - BearerAuth: []
       parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+          description: >
+            Optional idempotency key for client retries. Requests from the same passenger
+            with the same key return the original booking response instead of creating
+            a new booking.
+          example: booking-passenger-3dfd55db-20260428-0001
         - in: header
           name: x-simulate-fail-after-insert
           required: false
@@ -45,13 +68,30 @@ paths:
                 paymentMethod:
                   type: string
                   enum: [CASH, WALLET, CARD]
-                  example: CASH
+                  example: CARD
                 idempotencyKey:
                   type: string
-                  description: Optional deduplication key
+                  description: >
+                    Optional fallback deduplication key in request body. If both header and body
+                    are present, Idempotency-Key header takes precedence.
                   example: passenger_1_10.7620_106.6600_10.8230_106.6290_28543210
                 route:
                   $ref: '#/components/schemas/BookingRoute'
+            examples:
+              concurrentRaceCase:
+                summary: Concurrent duplicate booking payload
+                value:
+                  pickup:
+                    lat: 10.76
+                    lng: 106.66
+                    address: TC35 Pickup
+                  dropoff:
+                    lat: 10.77
+                    lng: 106.70
+                    address: TC35 Dropoff
+                  vehicleType: ECONOMY
+                  estimatedPrice: 50000
+                  paymentMethod: CASH
       responses:
         '201':
           description: Booking created successfully
@@ -59,6 +99,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccessBooking'
+        '200':
+          description: Duplicate replay, original booking returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccessBooking'
+              example:
+                success: true
+                data:
+                  _id: 69f024bd172b49182598ca21
+                  idempotencyKey: tc35-same-key-001
+                  status: SEARCHING
         '400':
           description: Invalid input
           content:
@@ -72,14 +124,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
         '500':
-          description: Internal error (includes simulated failure in non-production)
+          description: Internal error (includes simulated failure or transient transaction conflict)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
-              example:
-                success: false
-                message: SIMULATED_FAIL_AFTER_INSERT
+              examples:
+                simulatedFailure:
+                  summary: Simulated rollback error (test header)
+                  value:
+                    success: false
+                    message: SIMULATED_FAIL_AFTER_INSERT
+                transientConflict:
+                  summary: Concurrent transaction conflict (no duplicate persisted)
+                  value:
+                    success: false
+                    message: "Caused by ::  :: Please retry your operation or multi-document transaction."
 
   /api/bookings/my-bookings:
     get:
@@ -184,6 +244,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+
 
 components:
   schemas:
@@ -321,15 +382,15 @@ components:
             - NO_DRIVER_FOUND
             - FAILED
             - PAYMENT_FAILED
-          example: SEARCHING
+          example: FAILED
         paymentMethod:
           type: string
           enum: [CASH, WALLET, CARD]
-          example: CASH
+          example: CARD
         paymentStatus:
           type: string
           enum: [UNPAID, PENDING, PAID, FAILED]
-          example: UNPAID
+          example: FAILED
         assignedDriverId:
           type: string
           nullable: true
@@ -361,7 +422,7 @@ components:
         failureReason:
           type: string
           nullable: true
-          example: null
+          example: Payment transaction failed
         route:
           allOf:
             - $ref: '#/components/schemas/BookingRoute'

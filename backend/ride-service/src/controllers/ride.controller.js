@@ -372,6 +372,35 @@ exports.confirmCashPayment = async (req, res) => {
  */
 exports.simulateWalletPayment = async (req, res) => {
   try {
+    const failSimulation = req.body?.fail_simulation === true || req.body?.fail_simulation === 'true';
+
+    if (failSimulation) {
+      const ride = await rideService.getRideById(req.params.id, req.user);
+
+      await rabbitmq.publish(
+        rabbitmq.config.exchanges.rideEvents,
+        'ride.payment.failed',
+        {
+          eventId: `${Date.now()}-mock-payment-failed`,
+          type: 'PaymentFailed',
+          rideId: ride._id,
+          bookingId: ride.bookingId,
+          driverId: ride.driverId,
+          userId: ride.passengerId,
+          paymentMethod: ride.paymentMethod || 'WALLET',
+          paymentStatus: 'FAILED',
+          error: 'Simulated wallet failure',
+          timestamp: new Date().toISOString()
+        }
+      );
+
+      return sendResponse(res, 402, false, 'Wallet payment simulation failed', {
+        rideId: ride._id,
+        bookingId: ride.bookingId,
+        paymentStatus: 'FAILED'
+      });
+    }
+
     const ride = await rideService.simulateWalletPayment(req.params.id, req.user);
 
     // Publish payment completed event

@@ -54,23 +54,32 @@ const handleRideFailed = async (event) => {
 
 /**
  * Handle Payment Failure
- * Compensation: Mark booking as PAYMENT_FAILED (or Cancelled)
+ * Compensation: mark booking as FAILED and publish booking.payment_failed
  */
 const handlePaymentFailed = async (event) => {
   logger.info(`[Consumer] Handling payment.failed for booking ${event.bookingId} (Ride: ${event.rideId})`);
   try {
-    // Ideally booking has a direct link, or we look it up. 
-    // If the event only has rideId, we might need to find the booking associated with that ride.
-    // However, in the provided architecture, bookingId is usually passed along.
-    
     if (event.bookingId) {
-        await bookingService.updateBookingStatus(event.bookingId, 'PAYMENT_FAILED', {
-            reason: 'Payment transaction failed'
-        });
-        logger.info(`[Compensation] Booking ${event.bookingId} marked as PAYMENT_FAILED`);
+      const updated = await bookingService.updateBookingStatus(event.bookingId, 'FAILED', {
+        reason: event.reason || 'Payment transaction failed'
+      });
+
+      await rabbitmq.publish(
+        rabbitmq.config.exchanges.bookingEvents,
+        'booking.payment_failed',
+        {
+          bookingId: updated._id?.toString?.() || event.bookingId,
+          rideId: event.rideId,
+          userId: updated.passengerId,
+          status: 'FAILED',
+          reason: updated.failureReason || event.reason || 'Payment transaction failed',
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      logger.info(`[Compensation] Booking ${event.bookingId} marked as FAILED due to payment failure`);
     } else {
-        logger.warn(`[Consumer] Received payment.failed without bookingId. RideId: ${event.rideId}`);
-        // TODO: potential lookup by rideId if needed
+      logger.warn(`[Consumer] Received payment.failed without bookingId. RideId: ${event.rideId}`);
     }
   } catch (error) {
     logger.error(`[Consumer] Error handling payment.failed:`, error);

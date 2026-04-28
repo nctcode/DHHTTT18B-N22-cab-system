@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { rideService } from '../services';
+import { bookingService, rideService } from '../services';
 import socketService from '../services/socketService';
 import toast from 'react-hot-toast';
 import Button from '../components/Button';
@@ -11,7 +11,11 @@ export default function Payment() {
     const navigate = useNavigate();
     const [fetching, setFetching] = useState(true);
     const [ride, setRide] = useState(null);
-    const [retryCount, setRetryCount] = useState(0);
+    const [rollbackInfo, setRollbackInfo] = useState(null);
+    const [isRetrying, setIsRetrying] = useState(false);
+    const [isSimulatingRollback, setIsSimulatingRollback] = useState(false);
+
+    const enableRollbackDemo = import.meta.env.DEV;
 
     // Join ride room for real-time socket events
     useEffect(() => {
@@ -42,6 +46,16 @@ export default function Payment() {
                 const data = response.data || response.ride || response;
                 setRide(data);
 
+                if (data?.status === 'FAILED') {
+                    setRollbackInfo((prev) => prev || {
+                        bookingId: data?.bookingId || null,
+                        status: 'FAILED',
+                        reason: data?.failureReason || 'Payment transaction failed',
+                        verified: true,
+                        receivedAt: new Date().toISOString(),
+                    });
+                }
+
                 // If digital payment and success, redirect to rating
                 if ((data.paymentMethod === 'WALLET' || data.paymentMethod === 'CARD') && data.paymentStatus === 'PAID') {
                     setTimeout(() => {
@@ -71,6 +85,8 @@ export default function Payment() {
     }, [rideId, navigate]);
 
     useEffect(() => {
+        const currentBookingId = ride?.bookingId;
+
         // Listen for digital payment completion
         const handlePaymentCompleted = (data) => {
             console.log('📩 Received payment completed event:', data);
@@ -82,12 +98,60 @@ export default function Payment() {
             }
         };
 
-        // Listen for wallet payment failure
+        // Listen for ride payment failure (before compensation completes)
         const handlePaymentFailed = (data) => {
             if (data.rideId === rideId || data.ride_id === rideId) {
                 console.log('✗ Payment failed:', data);
                 setRide(prev => prev ? { ...prev, paymentStatus: 'FAILED' } : prev);
-                toast.error('Thanh toán thất bại. Vui lòng thử lại hoặc liên hệ CSKH.');
+                toast.error('Thanh toán thất bại. Đang rollback chuyến đi...');
+            }
+        };
+
+        // Listen for booking compensation result (official rollback proof)
+        const handleBookingPaymentFailed = async (data) => {
+            if (currentBookingId && data?.bookingId && data.bookingId !== currentBookingId) {
+                return;
+            }
+
+            const reason = data?.reason || 'Payment transaction failed';
+            console.log('⚠️ Booking rollback received:', data);
+
+            setRide(prev => prev ? {
+                ...prev,
+                paymentStatus: 'FAILED',
+                status: 'FAILED',
+                failureReason: reason,
+            } : prev);
+
+            setRollbackInfo({
+                bookingId: data?.bookingId || currentBookingId || null,
+                status: data?.status || 'FAILED',
+                reason,
+                verified: false,
+                receivedAt: new Date().toISOString(),
+            });
+
+            localStorage.removeItem('activeRideId');
+            toast.error('Thanh toán thất bại. Hệ thống đã rollback chuyến đi.');
+
+            if (data?.bookingId) {
+                try {
+                    const bookingResp = await bookingService.getBooking(data.bookingId);
+                    const bookingData = bookingResp?.data || bookingResp?.booking || bookingResp;
+
+                    if (bookingData?.status === 'FAILED') {
+                        setRollbackInfo(prev => ({
+                            ...(prev || {}),
+                            bookingId: bookingData?._id || data.bookingId,
+                            status: bookingData.status,
+                            reason: bookingData.failureReason || reason,
+                            verified: true,
+                            receivedAt: prev?.receivedAt || new Date().toISOString(),
+                        }));
+                    }
+                } catch (verifyError) {
+                    console.warn('Cannot verify rollback booking state from API:', verifyError?.message || verifyError);
+                }
             }
         };
 
@@ -105,6 +169,7 @@ export default function Payment() {
         socketService.socket?.on('ride:paymentCompleted', handlePaymentCompleted);
         socketService.socket?.on('ride.payment.failed', handlePaymentFailed);
         socketService.socket?.on('ride:paymentFailed', handlePaymentFailed);
+        socketService.socket?.on('booking:paymentFailed', handleBookingPaymentFailed);
         socketService.socket?.on('ride.payment.cash-confirmed', handleCashConfirmed);
 
         return () => {
@@ -112,22 +177,28 @@ export default function Payment() {
             socketService.socket?.off('ride:paymentCompleted', handlePaymentCompleted);
             socketService.socket?.off('ride.payment.failed', handlePaymentFailed);
             socketService.socket?.off('ride:paymentFailed', handlePaymentFailed);
+            socketService.socket?.off('booking:paymentFailed', handleBookingPaymentFailed);
             socketService.socket?.off('ride.payment.cash-confirmed', handleCashConfirmed);
         };
-    }, [rideId, navigate]);
+    }, [rideId, navigate, ride?.bookingId]);
 
-
-    const [isRetrying, setIsRetrying] = useState(false);
 
     if (fetching) return <div className="min-h-full h-full flex items-center justify-center box-border"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div></div>;
 
     const fare = ride?.finalFare || ride?.estimatedPrice || 0;
     const method = ride?.paymentMethod || 'CASH';
     const status = ride?.paymentStatus || 'UNPAID';
+    const rollbackReason = rollbackInfo?.reason || ride?.failureReason || 'Payment transaction failed';
+    const hasRollback = rollbackInfo?.status === 'FAILED' || ride?.status === 'FAILED';
 
-    const isPaymentComplete = status === 'PAID';
+    const isPaymentComplete = status === 'PAID' && !hasRollback;
 
     const handleRetry = async () => {
+        if (hasRollback) {
+            toast.error('Booking đã rollback. Vui lòng đặt chuyến mới.');
+            return;
+        }
+
         setIsRetrying(true);
         try {
             await api.post(`/api/payments/${rideId}/retry`);
@@ -137,6 +208,30 @@ export default function Payment() {
             toast.error(error.response?.data?.message || 'Không thể thử lại thanh toán');
         } finally {
             setIsRetrying(false);
+        }
+    };
+
+    const handleStartNewBooking = () => {
+        localStorage.removeItem('activeRideId');
+        navigate('/home', { replace: true });
+    };
+
+    const handleSimulateRollback = async () => {
+        setIsSimulatingRollback(true);
+        try {
+            const response = await api.patch(`/api/rides/${rideId}/simulate-wallet`, {
+                fail_simulation: true,
+            });
+
+            if (![200, 202, 402].includes(response.status)) {
+                throw new Error(`Unexpected status ${response.status}`);
+            }
+
+            toast('Đã gửi mô phỏng lỗi thanh toán. Đang chờ rollback event...', { icon: '🧪' });
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Không thể mô phỏng payment failure');
+        } finally {
+            setIsSimulatingRollback(false);
         }
     };
 
@@ -181,6 +276,26 @@ export default function Payment() {
 
                 {/* Payment Status Info */}
                 <h3 className="font-bold text-gray-800 mb-4">Phương thức thanh toán</h3>
+
+                {hasRollback && (
+                    <div id="payment-rollback-proof" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-bold text-red-700">Rollback đã kích hoạt</p>
+                                <p className="text-xs text-red-600 mt-1">
+                                    Booking {rollbackInfo?.bookingId ? `#${rollbackInfo.bookingId.slice(-6)}` : ''} đã được chuyển sang trạng thái FAILED.
+                                </p>
+                            </div>
+                            <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${rollbackInfo?.verified ? 'bg-red-200 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {rollbackInfo?.verified ? 'Đã xác minh API' : 'Đã nhận event'}
+                            </span>
+                        </div>
+                        <p className="text-xs text-red-700 mt-3">
+                            <span className="font-semibold">Lý do:</span> {rollbackReason}
+                        </p>
+                    </div>
+                )}
+
                 <div className="space-y-3 mb-8">
                     {method === 'CASH' && (
                         <div className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${status === 'PAID'
@@ -233,16 +348,26 @@ export default function Payment() {
                                     ) : status === 'FAILED' ? (
                                         <div className="flex flex-col gap-2 mt-1">
                                             <div className="text-red-600 font-medium">
-                                                ✗ Thanh toán thất bại. Vui lòng thử lại.
+                                                {hasRollback
+                                                    ? '✗ Thanh toán thất bại. Chuyến đi đã được rollback.'
+                                                    : '✗ Thanh toán thất bại. Vui lòng thử lại.'}
                                             </div>
-                                            <Button
-                                                variant="primary"
-                                                onClick={handleRetry}
-                                                loading={isRetrying}
-                                                className="py-2 text-sm w-full"
-                                            >
-                                                Thử lại thanh toán
-                                            </Button>
+
+                                            <div className="text-red-500 text-[11px]">
+                                                {hasRollback ? `Lý do rollback: ${rollbackReason}` : 'Bạn có thể thử thanh toán lại.'}
+                                            </div>
+
+                                            {!hasRollback && (
+                                                <Button
+                                                    id="retry-payment-btn"
+                                                    variant="primary"
+                                                    onClick={handleRetry}
+                                                    loading={isRetrying}
+                                                    className="py-2 text-sm w-full"
+                                                >
+                                                    Thử lại thanh toán
+                                                </Button>
+                                            )}
                                         </div>
                                     ) : status === 'PAID' ? (
                                         <div className="text-green-600 font-medium flex items-center gap-2">
@@ -255,18 +380,41 @@ export default function Payment() {
                         </div>
                     )}
                 </div>
+
+                {enableRollbackDemo && (method === 'WALLET' || method === 'CARD') && !hasRollback && (
+                    <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-xs font-semibold text-amber-700 mb-2">Demo rollback (DEV)</p>
+                        <Button
+                            id="simulate-rollback-btn"
+                            variant="danger"
+                            onClick={handleSimulateRollback}
+                            loading={isSimulatingRollback}
+                            className="w-full py-2 text-sm"
+                        >
+                            Mô phỏng payment failure + rollback
+                        </Button>
+                        <p className="text-[11px] text-amber-700 mt-2">
+                            Dùng để chứng minh UI nhận event <code>booking:paymentFailed</code> và cập nhật trạng thái rollback.
+                        </p>
+                    </div>
+                )}
             </div>
 
             <div className="p-6 bg-white border-t safe-area-bottom">
                 <Button
-                    variant="primary"
-                    disabled={!isPaymentComplete}
-                    onClick={() => navigate('/rating/' + rideId)}
+                    id="payment-main-action-btn"
+                    variant={hasRollback ? 'danger' : 'primary'}
+                    disabled={!hasRollback && !isPaymentComplete}
+                    onClick={hasRollback ? handleStartNewBooking : () => navigate('/rating/' + rideId)}
                     className="w-full py-4 text-lg shadow-lg"
                 >
-                    {isPaymentComplete ? 'Đánh giá chuyến đi' :
-                        (method === 'WALLET' || method === 'CARD') ? 'Chờ thanh toán hoàn tất...' :
-                            'Chờ tài xế xác nhận...'}
+                    {hasRollback
+                        ? 'Đặt chuyến mới'
+                        : isPaymentComplete
+                            ? 'Đánh giá chuyến đi'
+                            : (method === 'WALLET' || method === 'CARD')
+                                ? 'Chờ thanh toán hoàn tất...'
+                                : 'Chờ tài xế xác nhận...'}
                 </Button>
             </div>
         </div>

@@ -4,8 +4,10 @@ paths:
     post:
       tags:
         - Rides
-      summary: Create a new ride
-      description: Tạo ride mới từ booking. PassengerId lấy từ JWT.
+      summary: Create ride from booking
+      description: >
+        Tạo bản ghi ride dựa trên booking. API này thường được gọi trong luồng điều phối
+        booking -> ride. Đây cũng là bước chuẩn bị để test rollback khi payment failed.
       security:
         - BearerAuth: []
       requestBody:
@@ -16,32 +18,43 @@ paths:
               type: object
               required:
                 - bookingId
-                - pickup
-                - dropoff
-                - vehicleType
+                - passengerId
               properties:
                 bookingId:
                   type: string
-                  example: "507f1f77bcf86cd799439012"
-                pickup:
-                  $ref: '#/components/schemas/Location'
-                dropoff:
-                  $ref: '#/components/schemas/Location'
-                vehicleType:
+                  description: Booking ObjectId
+                  example: "66492c4864a7e95ecfded111"
+                passengerId:
                   type: string
-                  enum: [BIKE, CAR]
-                  example: "CAR"
-                estimatedPrice:
-                  type: number
+                  description: Passenger user id (UUID)
+                  example: "3dfd55db-3743-4356-8992-6274c5a0ba93"
+                pickup:
+                  $ref: '#/components/schemas/RideLocation'
+                dropoff:
+                  $ref: '#/components/schemas/RideLocation'
+                route:
+                  $ref: '#/components/schemas/RideRoute'
+                driverId:
+                  type: string
+                  nullable: true
+                  description: Driver user id (optional, for direct assignment)
+                driverLocation:
+                  $ref: '#/components/schemas/RideLatLng'
+                paymentMethod:
+                  type: string
+                  enum: [CASH, WALLET, CARD]
+                  example: CARD
       responses:
         '201':
           description: Ride created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ride'
+                $ref: '#/components/schemas/RideApiResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
 
   /api/rides/{id}:
     get:
@@ -56,16 +69,60 @@ paths:
           required: true
           schema:
             type: string
-          description: Ride ID (MongoDB ObjectId)
+          description: Ride ObjectId
       responses:
         '200':
           description: Ride details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ride'
+                $ref: '#/components/schemas/RideApiResponse'
         '404':
           $ref: '#/components/responses/NotFoundError'
+
+  /api/rides/passenger/{passengerId}:
+    get:
+      tags:
+        - Rides
+      summary: Get rides by passenger
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: passengerId
+          required: true
+          schema:
+            type: string
+          description: Passenger user id
+      responses:
+        '200':
+          description: List rides of passenger
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiListResponse'
+
+  /api/rides/driver/{driverId}:
+    get:
+      tags:
+        - Rides
+      summary: Get rides by driver
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: driverId
+          required: true
+          schema:
+            type: string
+          description: Driver user id
+      responses:
+        '200':
+          description: List rides of driver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiListResponse'
 
   /api/rides/{id}/assign:
     patch:
@@ -80,6 +137,7 @@ paths:
           required: true
           schema:
             type: string
+          description: Ride ObjectId
       requestBody:
         required: true
         content:
@@ -91,20 +149,22 @@ paths:
               properties:
                 driverId:
                   type: string
-                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                driverLocation:
+                  $ref: '#/components/schemas/RideLatLng'
       responses:
         '200':
-          description: Driver assigned successfully
+          description: Driver assigned
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ride'
+                $ref: '#/components/schemas/RideApiResponse'
 
-  /api/rides/{id}/start:
+  /api/rides/{id}/arrive:
     patch:
       tags:
         - Rides
-      summary: Start the ride
+      summary: Mark driver arrived at pickup
       security:
         - BearerAuth: []
       parameters:
@@ -115,17 +175,38 @@ paths:
             type: string
       responses:
         '200':
-          description: Ride started successfully
+          description: Ride status changed to ARRIVED
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ride'
+                $ref: '#/components/schemas/RideApiResponse'
+
+  /api/rides/{id}/start:
+    patch:
+      tags:
+        - Rides
+      summary: Start ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ride started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiResponse'
 
   /api/rides/{id}/complete:
     patch:
       tags:
         - Rides
-      summary: Complete the ride
+      summary: Complete ride and trigger payment processing
       security:
         - BearerAuth: []
       parameters:
@@ -147,25 +228,28 @@ paths:
                 actualDistanceKm:
                   type: number
                   format: float
-                  minimum: 0.1
-                  example: 15.3
+                  minimum: 0
+                  example: 6.7
                 actualDurationMin:
-                  type: integer
-                  minimum: 1
-                  example: 32
+                  type: number
+                  format: float
+                  minimum: 0
+                  example: 21
+                driverLocation:
+                  $ref: '#/components/schemas/RideLatLng'
       responses:
         '200':
-          description: Ride completed successfully
+          description: Ride completed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Ride'
+                $ref: '#/components/schemas/RideApiResponse'
 
-  /api/rides/{id}/cancel:
+  /api/rides/{id}/confirm-cash-payment:
     patch:
       tags:
         - Rides
-      summary: Cancel the ride
+      summary: Driver confirms cash payment
       security:
         - BearerAuth: []
       parameters:
@@ -174,41 +258,129 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        '200':
+          description: Cash payment confirmed (paymentStatus = PAID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiResponse'
+
+  /api/rides/{id}/simulate-wallet:
+    patch:
+      tags:
+        - Rides
+      summary: Simulate wallet payment for testing
+      description: >
+        Endpoint phục vụ test. Khi gửi fail_simulation=true, hệ thống publish event
+        ride.payment.failed và kích hoạt compensation: booking-service rollback booking
+        sang FAILED.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Ride ObjectId
       requestBody:
+        required: false
         content:
           application/json:
             schema:
               type: object
               properties:
-                reason:
-                  type: string
-                  example: "Passenger cancelled"
+                fail_simulation:
+                  type: boolean
+                  default: false
+                  example: true
       responses:
         '200':
-          description: Ride cancelled successfully
+          description: Wallet payment simulated as success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiResponse'
+        '402':
+          description: Simulated payment failure sent to compensation flow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideSimulationFailedResponse'
 
-  /api/rides/passenger/{passengerId}:
-    get:
+  /api/rides/{id}/cancel:
+    patch:
       tags:
         - Rides
-      summary: Get rides by passenger ID
+      summary: Passenger cancel ride
       security:
         - BearerAuth: []
       parameters:
         - in: path
-          name: passengerId
+          name: id
           required: true
           schema:
             type: string
-            format: uuid
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED]
       responses:
         '200':
-          description: List of rides
+          description: Ride cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiResponse'
+
+  /api/rides/{id}/driver-cancel:
+    patch:
+      tags:
+        - Rides
+      summary: Driver cancel accepted ride (trigger rematching)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ride cancelled by driver
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideApiResponse'
+
+  /api/rides/eta:
+    post:
+      tags:
+        - Rides
+      summary: Predict ETA for a route
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pickup
+                - destination
+              properties:
+                pickup:
+                  $ref: '#/components/schemas/RideLatLng'
+                destination:
+                  $ref: '#/components/schemas/RideLatLng'
+                timeOfDay:
+                  type: string
+                  example: "MORNING"
+                dayOfWeek:
+                  type: string
+                  example: "MONDAY"
+      responses:
+        '200':
+          description: ETA prediction result
           content:
             application/json:
               schema:
@@ -216,19 +388,67 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: ETA prediction
                   data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Ride'
+                    type: object
+                    properties:
+                      predictedArrivalMinutes:
+                        type: number
+                      predictedTripDurationMinutes:
+                        type: number
+                      distanceKm:
+                        type: number
+                      source:
+                        type: string
+
+  /api/rides/route:
+    post:
+      tags:
+        - Rides
+      summary: Calculate route between pickup and destination
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pickup
+                - destination
+              properties:
+                pickup:
+                  $ref: '#/components/schemas/RideLatLng'
+                destination:
+                  $ref: '#/components/schemas/RideLatLng'
+      responses:
+        '200':
+          description: Route calculated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Route calculated
+                  data:
+                    $ref: '#/components/schemas/RideRoute'
 
 components:
   schemas:
-    Location:
+    RideLatLng:
       type: object
       required:
         - lat
         - lng
-        - address
       properties:
         lat:
           type: number
@@ -238,57 +458,103 @@ components:
           type: number
           format: double
           example: 106.660172
-        address:
-          type: string
-          example: "Quận 1, TP.HCM"
 
-    Ride:
+    RideLocation:
+      allOf:
+        - $ref: '#/components/schemas/RideLatLng'
+        - type: object
+          required:
+            - address
+          properties:
+            address:
+              type: string
+              example: "123 Nguyen Van Linh, District 7, HCMC"
+
+    RideRoute:
       type: object
       properties:
+        distanceKm:
+          type: number
+          example: 7.2
+        durationMin:
+          type: number
+          example: 18
+        polyline:
+          type: array
+          items:
+            type: array
+            minItems: 2
+            maxItems: 2
+            items:
+              type: number
+
+    RideData:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "66492c4864a7e95ecfded222"
         id:
           type: string
-          description: MongoDB ObjectId
-          example: "507f1f77bcf86cd799439011"
+          example: "66492c4864a7e95ecfded222"
         bookingId:
           type: string
-          example: "507f1f77bcf86cd799439012"
+          example: "66492c4864a7e95ecfded111"
         passengerId:
           type: string
-          format: uuid
-          example: "550e8400-e29b-41d4-a716-446655440000"
+          example: "3dfd55db-3743-4356-8992-6274c5a0ba93"
         driverId:
           type: string
-          format: uuid
           nullable: true
-        pickup:
-          $ref: '#/components/schemas/Location'
-        dropoff:
-          $ref: '#/components/schemas/Location'
-        vehicleType:
-          type: string
-          enum: [BIKE, CAR]
-          example: "CAR"
+          example: null
         status:
           type: string
-          enum: [PENDING, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED]
-          example: "PENDING"
+          enum: [CREATED, ASSIGNED, ARRIVED, STARTED, COMPLETED, CANCELLED, CANCELLED_BY_DRIVER]
+          example: COMPLETED
+        pickup:
+          $ref: '#/components/schemas/RideLocation'
+        dropoff:
+          $ref: '#/components/schemas/RideLocation'
+        previewRoute:
+          allOf:
+            - $ref: '#/components/schemas/RideRoute'
+          nullable: true
+        driverToPickupRoute:
+          allOf:
+            - $ref: '#/components/schemas/RideRoute'
+          nullable: true
+        tripRoute:
+          allOf:
+            - $ref: '#/components/schemas/RideRoute'
+          nullable: true
         actualDistanceKm:
           type: number
-          format: float
           nullable: true
-          example: 15.3
+          example: 6.7
         actualDurationMin:
-          type: integer
-          nullable: true
-          example: 32
-        estimatedPrice:
-          type: number
-        finalPrice:
           type: number
           nullable: true
-        createdAt:
+          example: 21
+        finalFare:
+          type: number
+          nullable: true
+          example: 42000
+        paymentMethod:
+          type: string
+          enum: [CASH, CARD, WALLET]
+          example: CARD
+        paymentStatus:
+          type: string
+          enum: [UNPAID, PENDING, PAID, FAILED]
+          example: FAILED
+        assignedAt:
           type: string
           format: date-time
+          nullable: true
+        arrivedAt:
+          type: string
+          format: date-time
+          nullable: true
         startedAt:
           type: string
           format: date-time
@@ -297,6 +563,72 @@ components:
           type: string
           format: date-time
           nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    RideApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Ride details
+        data:
+          $ref: '#/components/schemas/RideData'
+
+    RideApiListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Passenger rides
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RideData'
+
+    RideSimulationFailedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Wallet payment simulation failed
+        data:
+          type: object
+          properties:
+            rideId:
+              type: string
+              example: "66492c4864a7e95ecfded222"
+            bookingId:
+              type: string
+              example: "66492c4864a7e95ecfded111"
+            paymentStatus:
+              type: string
+              enum: [FAILED]
+              example: FAILED
+
+    RideErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Ride not found
 
   responses:
     ValidationError:
@@ -304,26 +636,19 @@ components:
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              message:
-                type: string
-
+            $ref: '#/components/schemas/RideErrorResponse'
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RideErrorResponse'
     NotFoundError:
       description: Resource not found
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              success:
-                type: boolean
-                example: false
-              message:
-                type: string
+            $ref: '#/components/schemas/RideErrorResponse'
 
   securitySchemes:
     BearerAuth:
