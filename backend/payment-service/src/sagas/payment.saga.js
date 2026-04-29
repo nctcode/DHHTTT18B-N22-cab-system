@@ -21,7 +21,7 @@ class PaymentSaga {
    * Step 1: RideFinished -> Create Payment (PENDING) -> Process Charge
    */
   async handleRideFinished(payload) {
-    const { rideId, passengerId, amount, method, driverId } = payload;
+    const { rideId, bookingId, passengerId, amount, method, driverId } = payload;
     console.log(`[Saga] RideFinished received for ride ${rideId}`);
 
     // IDEMPOTENCY CHECK
@@ -46,14 +46,15 @@ class PaymentSaga {
           payment_method: method,
           status: 'PENDING',
           saga_status: 'STARTED',
-          retry_count: 0
+          retry_count: 0,
+          idempotency_key: `${rideId}:${bookingId || 'no-booking'}`
         }
       });
 
       eventBus.publish(EVENTS.PAYMENT_STARTED, payment);
 
       // Trigger Charge
-      await this.processCharge(payment, driverId);
+      await this.processCharge(payment, driverId, bookingId);
 
     } catch (error) {
       console.error(`[Saga] Failed to initialize payment: ${error.message}`);
@@ -68,17 +69,22 @@ class PaymentSaga {
     if (!payment) return;
 
     // Trigger Charge again
-    await this.processCharge(payment, payment.driver_id);
+    await this.processCharge(payment, payment.driver_id, payload.bookingId);
   }
 
   /**
    * Step 2: Process Charge with Retry
    */
-  async processCharge(payment, driverId) {
+  async processCharge(payment, driverId, bookingId = null) {
     const adapter = getAdapter(payment.payment_method);
+
+    const baseIdempotencyKey = payment.idempotency_key || `${payment.ride_id}:${bookingId || 'no-booking'}`;
+    const pspIdempotencyKey = `psp:${payment.id}:${baseIdempotencyKey}`;
     
     try {
-      let details = {};
+      let details = {
+        idempotencyKey: pspIdempotencyKey,
+      };
       if (payment.payment_method === 'CARD') {
          const savedCard = await prisma.savedPaymentMethod.findFirst({
              where: { passenger_id: payment.passenger_id },
@@ -142,6 +148,7 @@ class PaymentSaga {
           eventId: `payment-failed-${payment.id}`,
           type: 'PaymentFailed',
           rideId: payment.ride_id,
+          bookingId,
           userId: payment.passenger_id,
           driverId: payment.driver_id,
           paymentMethod: payment.payment_method,

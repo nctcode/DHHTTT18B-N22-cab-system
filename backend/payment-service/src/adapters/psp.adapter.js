@@ -32,6 +32,8 @@ class StripeAdapter extends PSPAdapter {
         payment_method: details.paymentMethodId,
         confirm: true,
         off_session: true // indicates this is a backend-initiated charge
+      }, {
+        idempotencyKey: details.idempotencyKey,
       });
 
       return {
