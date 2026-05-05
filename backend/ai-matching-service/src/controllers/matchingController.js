@@ -6,7 +6,7 @@ const send = (res, code, success, message, data = null) =>
 class MatchingController {
   async findBestDriver(req, res) {
     try {
-      const { pickupLocation, availableDrivers, rideContext } = req.body;
+      const { traceId, pickupLocation, availableDrivers, rideContext } = req.body;
 
       if (!pickupLocation || !pickupLocation.lat || !pickupLocation.lng) {
         return send(res, 400, false, 'pickupLocation with lat/lng is required');
@@ -15,7 +15,7 @@ class MatchingController {
         return send(res, 400, false, 'availableDrivers array is required and must not be empty');
       }
 
-      const result = await matchingService.findBestDriver(pickupLocation, availableDrivers, rideContext);
+      const result = await matchingService.findBestDriver(pickupLocation, availableDrivers, rideContext, traceId);
       send(res, 200, true, 'Best driver found', result);
     } catch (e) {
       send(res, 500, false, e.message);

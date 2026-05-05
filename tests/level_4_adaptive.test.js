@@ -216,9 +216,9 @@ describe('LEVEL 4 - Transaction & Data Consistency (TC31 → TC40)', () => {
     });
   });
 
-  // ── TC38: Kafka event consistency (outbox pattern) ──
-  describe('TC38: Kafka event consistency (outbox pattern)', () => {
-    test('DB commit va event dong bo - khong mat event', async () => {
+  // ── TC38: RabbitMQ event consistency (outbox pattern) ──
+  describe('TC38: RabbitMQ event consistency (outbox pattern)', () => {
+    test('DB commit va RabbitMQ event dong bo - khong mat event', async () => {
       const payload = {
         pickup: { lat: 10.803, lng: 106.653, address: 'TC38 Outbox' },
         dropoff: { lat: 10.813, lng: 106.663, address: 'TC38 Dest' },

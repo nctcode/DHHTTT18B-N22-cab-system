@@ -264,8 +264,6 @@ services:
       context: ./backend/auth-service
       dockerfile: Dockerfile
     container_name: cab-booking-auth-service
-    ports:
-      - "3001:3001"
     env_file:
       - ./backend/auth-service/.env
     environment:
@@ -291,8 +289,6 @@ services:
       context: ./backend/user-service
       dockerfile: Dockerfile
     container_name: cab-booking-user-service
-    ports:
-      - "3002:3002"
     env_file:
       - ./backend/user-service/.env
     depends_on:
@@ -306,8 +302,6 @@ services:
       context: ./backend/driver-service
       dockerfile: Dockerfile
     container_name: cab-booking-driver-service
-    ports:
-      - "3003:3003"
     env_file:
       - ./backend/driver-service/.env
     depends_on:
@@ -322,8 +316,6 @@ services:
       # Dockerfile của bạn đã EXPOSE 3004, ta dùng đúng cổng này
       dockerfile: Dockerfile
     container_name: cab-booking-booking-service
-    ports:
-      - "3004:3004"
     env_file:
       - ./backend/booking-service/.env
     depends_on:
@@ -343,8 +335,6 @@ services:
       context: ./backend/ride-service
       dockerfile: Dockerfile
     container_name: cab-booking-ride-service
-    ports:
-      - "3005:3005"
     env_file:
       - ./backend/ride-service/.env
     environment:
@@ -370,8 +360,6 @@ services:
       context: ./backend/payment-service
       dockerfile: Dockerfile
     container_name: cab-booking-payment-service
-    ports:
-      - "3006:3006"
     env_file:
       - ./backend/payment-service/.env
     depends_on:
@@ -384,8 +372,6 @@ services:
       context: ./backend/pricing-service
       dockerfile: Dockerfile
     container_name: cab-booking-pricing-service
-    ports:
-      - "3007:3007"
     env_file:
       - ./backend/pricing-service/.env
     environment:
@@ -400,8 +386,6 @@ services:
       context: ./backend/notification-service
       dockerfile: Dockerfile
     container_name: cab-booking-notification-service
-    ports:
-      - "3008:3008"
     env_file:
       - ./backend/notification-service/.env
     depends_on:
@@ -414,8 +398,6 @@ services:
       context: ./backend/review-service
       dockerfile: Dockerfile
     container_name: cab-booking-review-service
-    ports:
-      - "3009:3009"
     env_file:
       - ./backend/review-service/.env
     depends_on:
@@ -429,8 +411,6 @@ services:
       context: ./backend/feature-store-service
       dockerfile: Dockerfile
     container_name: cab-booking-feature-store
-    ports:
-      - "4020:4020"
     env_file:
       - ./backend/feature-store-service/.env
     environment:
@@ -447,8 +427,6 @@ services:
       context: ./backend/model-serving-service
       dockerfile: Dockerfile
     container_name: cab-booking-model-serving
-    ports:
-      - "4010:4010"
     env_file:
       - ./backend/model-serving-service/.env
     networks:
@@ -459,8 +437,6 @@ services:
       context: ./backend/ml-training-service
       dockerfile: Dockerfile
     container_name: cab-booking-ml-training
-    ports:
-      - "4030:4030"
     env_file:
       - ./backend/ml-training-service/.env
     environment:
@@ -480,8 +456,6 @@ services:
       context: ./backend/ai-matching-service
       dockerfile: Dockerfile
     container_name: cab-booking-ai-matching
-    ports:
-      - "4001:4001"
     env_file:
       - ./backend/ai-matching-service/.env
     environment:
@@ -498,8 +472,6 @@ services:
       context: ./backend/ai-eta-service
       dockerfile: Dockerfile
     container_name: cab-booking-ai-eta
-    ports:
-      - "4002:4002"
     env_file:
       - ./backend/ai-eta-service/.env
     environment:
@@ -516,8 +488,6 @@ services:
       context: ./backend/ai-surge-service
       dockerfile: Dockerfile
     container_name: cab-booking-ai-surge
-    ports:
-      - "4003:4003"
     env_file:
       - ./backend/ai-surge-service/.env
     environment:
@@ -534,8 +504,6 @@ services:
       context: ./backend/routing-service
       dockerfile: Dockerfile
     container_name: cab-booking-routing-service
-    ports:
-      - "4040:4040"
     env_file:
       - ./backend/routing-service/.env
     networks:

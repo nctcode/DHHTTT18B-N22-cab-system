@@ -416,6 +416,10 @@ const options = {
         description: 'Review and rating management',
       },
       {
+        name: 'AI',
+        description: 'AI & Big Data Analytics operations (Matching, Recommendation, Forecasting)',
+      },
+      {
         name: 'Health',
         description: 'Health check endpoints',
       },

@@ -233,10 +233,21 @@ class BookingService {
         return saved;
       });
     } catch (error) {
-      if (error?.code === 11000 && error?.keyPattern?.passengerId && error?.keyPattern?.idempotencyKey) {
-        console.warn(`[IDEMPOTENCY] Duplicate key race detected for passenger ${passengerId}, resolving by replay`);
-        const replayedBooking = await Booking.findOne({ passengerId, idempotencyKey });
+      const isDuplicateKey = error?.code === 11000 && error?.keyPattern?.passengerId && error?.keyPattern?.idempotencyKey;
+      const isWriteConflict = error?.code === 112 || error?.hasErrorLabel?.('TransientTransactionError') || error?.message?.includes('retry your operation') || error?.message?.includes('WriteConflict');
+
+      if (isDuplicateKey || isWriteConflict) {
+        console.warn(`[IDEMPOTENCY] Race or WriteConflict detected for passenger ${passengerId}, waiting for primary transaction to commit...`);
+        
+        let replayedBooking = null;
+        for (let i = 0; i < 10; i++) {
+          replayedBooking = await Booking.findOne({ passengerId, idempotencyKey });
+          if (replayedBooking) break;
+          await new Promise(res => setTimeout(res, 200)); // wait 200ms before retry
+        }
+
         if (replayedBooking) {
+          console.warn(`[IDEMPOTENCY] Resolved by replay after waiting.`);
           return {
             booking: replayedBooking,
             replayed: true,

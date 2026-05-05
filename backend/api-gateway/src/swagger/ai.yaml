@@ -1,0 +1,284 @@
+# src/swagger/ai.yaml
+paths:
+
+  /api/ai/recommend/top-drivers:
+    post:
+      tags:
+        - AI
+      summary: "Recommendation: Gợi ý Top-N tài xế (dữ liệu thật)"
+      description: |
+        **Test Case: Recommendation trả đúng Top-N drivers**
+
+        **Flow thực tế:**
+        1. Gọi `Driver Service /drivers/nearby` → lọc tài xế `is_available = true` + trong bán kính bằng Haversine SQL
+        2. Gửi danh sách tài xế thật → `AI Matching Service` → `Model Serving` xếp hạng
+        3. Model tính điểm dựa trên: khoảng cách, rating, acceptance rate, cancellation rate
+        4. Trả về đúng `top_n` tài xế, **không thiếu, không dư**
+
+        **Kết quả kỳ vọng:**
+        - `data.length === top_n` (khi có đủ tài xế)
+        - Mỗi record có `rank`, `ai_score`, `distance_km`, `is_available = true`
+        - Nếu không có tài xế → `data = []`, context giải thích sẽ `NO_DRIVER_FOUND`
+
+        **Lưu ý ngữ cảnh hệ thống:**
+        Khi Booking tạo, hệ thống có **15 giây** để gửi offer đến từng tài xế theo thứ tự rank.
+        Tài xế không active (`is_available = false` hoặc không update location trong 1 phút) sẽ **không xuất hiện**.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pickup:
+                  type: object
+                  description: "Tọa độ điểm đón (dùng để tính khoảng cách đến từng tài xế)"
+                  properties:
+                    lat:
+                      type: number
+                      example: 10.762622
+                    lng:
+                      type: number
+                      example: 106.660172
+                top_n:
+                  type: integer
+                  description: "Số tài xế muốn lấy (mặc định 3, tối đa 20)"
+                  example: 3
+                  default: 3
+                radius_km:
+                  type: number
+                  description: "Bán kính tìm kiếm (km). Mặc định 10km."
+                  example: 10
+                  default: 10
+            example:
+              pickup:
+                lat: 10.762622
+                lng: 106.660172
+              top_n: 3
+              radius_km: 10
+      responses:
+        '200':
+          description: "Top-N tài xế được AI xếp hạng (dữ liệu thật)"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Top 3 tài xế được AI gợi ý từ 5 tài xế đang hoạt động"
+                  context:
+                    type: string
+                    example: "Booking sẽ lần lượt gửi offer đến 3 tài xế, timeout 15s"
+                  total_available:
+                    type: integer
+                    description: "Tổng số tài xế đang online trong bán kính"
+                    example: 5
+                  top_n:
+                    type: integer
+                    example: 3
+                  pickup_used:
+                    type: object
+                    properties:
+                      lat: { type: number, example: 10.762622 }
+                      lng: { type: number, example: 106.660172 }
+                  data:
+                    type: array
+                    minItems: 0
+                    description: "Danh sách top-N tài xế, length = min(top_n, total_available)"
+                    items:
+                      type: object
+                      properties:
+                        rank:
+                          type: integer
+                          description: "Thứ hạng (1 = tốt nhất)"
+                          example: 1
+                        driverId:
+                          type: string
+                          example: "550e8400-e29b-41d4-a716-446655440000"
+                        ai_score:
+                          type: number
+                          description: "Điểm AI (cao hơn = tốt hơn)"
+                          example: 0.7342
+                        confidence:
+                          type: number
+                          example: 0.85
+                        distance_km:
+                          type: number
+                          description: "Khoảng cách đến điểm đón"
+                          example: 1.23
+                        rating_avg:
+                          type: number
+                          example: 4.8
+                        vehicle_type:
+                          type: string
+                          example: "car"
+                        vehicle_plate:
+                          type: string
+                          example: "51A-12345"
+                        is_available:
+                          type: boolean
+                          example: true
+                  processing_time_ms:
+                    type: number
+                    description: "Gateway processing time for this request (ms)."
+                    example: 142
+        '400':
+          description: "Thiếu pickup location"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string, example: "pickup.lat và pickup.lng là bắt buộc" }
+                  processing_time_ms: { type: number, example: 5 }
+        '502':
+          description: "AI Matching Service không phản hồi"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: false }
+                  message: { type: string, example: "AI Matching Service không phản hồi. Hệ thống sẽ dùng fallback nearest-driver." }
+                  processing_time_ms: { type: number, example: 8012 }
+
+  /api/ai/features/zone/{zoneId}/demand:
+    post:
+      tags:
+        - AI
+      summary: "[Test Helper] Increment real demand for a zone"
+      description: |
+        Tăng `demandCount` thật trong Feature Store cho `zoneId`.
+        Dùng endpoint này nhiều lần để tạo chuỗi lịch sử demand thật,
+        sau đó gọi `/api/ai/forecast` để kiểm tra forecast từ historical data.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: zoneId
+          required: true
+          schema:
+            type: string
+          example: zone_default
+      responses:
+        '200':
+          description: Demand incremented successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Demand incremented" }
+                  data:
+                    type: object
+                    properties:
+                      zoneId: { type: string, example: "zone_default" }
+                      demandCount: { type: integer, example: 11 }
+                      updatedAt: { type: string, format: date-time }
+
+  /api/ai/features/zone/{zoneId}/history:
+    get:
+      tags:
+        - AI
+      summary: "[Test Helper] Get real demand history by zone"
+      description: |
+        Lấy chuỗi lịch sử demand thật đã lưu trong Feature Store.
+        Endpoint này giúp xác minh dữ liệu đầu vào cho forecast.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: zoneId
+          required: true
+          schema:
+            type: string
+          example: zone_default
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 24
+          description: Số điểm lịch sử trả về
+      responses:
+        '200':
+          description: Zone demand history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "Zone demand history" }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp: { type: string, format: date-time, example: "2026-04-30T08:30:00.000Z" }
+                        value: { type: number, example: 12 }
+                        source: { type: string, example: "increment_demand" }
+
+  /api/ai/forecast:
+    post:
+      tags:
+        - AI
+      summary: "Forecast: Dự báo nhu cầu đặt xe (dữ liệu thật từ Feature Store)"
+      description: |
+        Dự báo nhu cầu đặt xe theo giờ dựa trên dữ liệu Demand thực tế từ Feature Store.
+
+        **Test Case Logic**: Output phải đúng format schema: có `timestamp` (ISO 8601) và `value` (số lượng dự báo).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                zone_id:
+                  type: string
+                  example: "zone_default"
+                window_hours:
+                  type: integer
+                  description: "Số giờ dự báo tương lai (1-48)."
+                  example: 6
+                history_limit:
+                  type: integer
+                  description: "Số điểm lịch sử demand thật lấy từ Feature Store để làm forecast."
+                  example: 48
+            example:
+              zone_id: "zone_default"
+              window_hours: 6
+              history_limit: 48
+      responses:
+        '200':
+          description: Forecast results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  real_current_demand: { type: integer, example: 47, description: "Demand thực tế hiện tại từ Feature Store" }
+                  history_points_used: { type: integer, example: 24, description: "Số điểm lịch sử demand thực tế đã dùng" }
+                  data_source: { type: string, example: "feature_store_history" }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp: { type: string, format: date-time, example: "2026-04-30T15:00:00Z" }
+                        value: { type: number, example: 55 }
+                  processing_time_ms: { type: number, example: 34 }

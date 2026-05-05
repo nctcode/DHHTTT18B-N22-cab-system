@@ -356,6 +356,10 @@ paths:
       tags:
         - Rides
       summary: Predict ETA for a route
+      description: >
+        Dự đoán thời gian đến (ETA) dựa trên mô hình AI. 
+        **Test Case Logic**: Với quãng đường đầu vào khoảng 5km, kết quả `predictedArrivalMinutes` và `predictedTripDurationMinutes` 
+        phải nằm trong dải giá trị hợp lý (lớn hơn 0 và nhỏ hơn 60 phút) để đảm bảo mô hình không trả về giá trị vô lý.
       security:
         - BearerAuth: []
       requestBody:
@@ -374,10 +378,21 @@ paths:
                   $ref: '#/components/schemas/RideLatLng'
                 timeOfDay:
                   type: string
+                  enum: [MORNING, AFTERNOON, EVENING, NIGHT]
                   example: "MORNING"
                 dayOfWeek:
                   type: string
+                  enum: [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY]
                   example: "MONDAY"
+            example:
+              pickup:
+                lat: 10.762622
+                lng: 106.660172
+              destination:
+                lat: 10.762622
+                lng: 106.706042
+              timeOfDay: "MORNING"
+              dayOfWeek: "MONDAY"
       responses:
         '200':
           description: ETA prediction result
@@ -391,18 +406,25 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: ETA prediction
+                    example: ETA prediction success
                   data:
                     type: object
                     properties:
                       predictedArrivalMinutes:
                         type: number
+                        description: Thời gian dự kiến tài xế đến điểm đón (phút). Phải > 0 và < 60 cho quãng đường ~5km.
+                        example: 8.5
                       predictedTripDurationMinutes:
                         type: number
+                        description: Thời gian dự kiến di chuyển đến điểm đến (phút). Phải > 0 và < 60 cho quãng đường ~5km.
+                        example: 15.2
                       distanceKm:
                         type: number
+                        description: Quãng đường tính toán (km).
+                        example: 5.0
                       source:
                         type: string
+                        example: "AI_MODEL_V1"
 
   /api/rides/route:
     post:

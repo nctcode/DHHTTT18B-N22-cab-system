@@ -17,12 +17,13 @@ const handleRidePaymentProcess = async (event) => {
   try {
     // Forward to local EventBus for PaymentSaga to handle
     eventBus.publish(EVENTS.RIDE_FINISHED, {
-        rideId: event.rideId,
-        bookingId: event.bookingId,
-        passengerId: event.passengerId,
-        driverId: event.driverId,
-        amount: event.amount,
-        method: event.method || 'WALLET'
+      rideId: event.rideId,
+      bookingId: event.bookingId,
+      passengerId: event.passengerId,
+      driverId: event.driverId,
+      amount: event.amount,
+      method: event.method || 'WALLET',
+      fraudScore: event.fraudScore ?? event.fraud_score,
     });
   } catch (error) {
     console.error('[Payment Consumer] Error forwarding payment process event:', error);

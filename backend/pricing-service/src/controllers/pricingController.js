@@ -1,4 +1,10 @@
 const pricingService = require('../services/pricingService');
+const { randomUUID } = require('crypto');
+
+// Read MAX_DISTANCE from ENV (default 50 km)
+// NOTE: MIN_DISTANCE env is a pricing rule (minimum billable km), NOT the validation floor.
+// Valid range for any ride request: distance_km must be > 0 and <= MAX_DISTANCE_KM
+const MAX_DISTANCE_KM = parseFloat(process.env.MAX_DISTANCE) || 50;
 
 const sendResponse = (res, statusCode, success, message, data = null) => {
   res.status(statusCode).json({ success, message, data });
@@ -22,6 +28,7 @@ class PricingController {
    * Body/Query: zoneId, distance_km, duration_min, vehicle_type, demand_index?, supply_index?
    */
   async estimate(req, res) {
+    const requestId = req.headers['x-request-id'] || randomUUID();
     try {
       // Helper: parse a float value, preserving undefined vs 0
       // parseFloat("0") → 0, parseFloat(undefined) → NaN → we return undefined
@@ -31,9 +38,34 @@ class PricingController {
         return isNaN(parsed) ? undefined : parsed;
       };
 
+      const rawDistance = req.query.distance_km || req.body.distance_km;
+      const distance_km = parseFloat(rawDistance);
+
+      // ── FAIL-FAST: Distance validation ──
+      // Valid range: distance_km > 0 AND <= MAX_DISTANCE_KM
+      if (isNaN(distance_km) || distance_km <= 0) {
+        console.warn(
+          `[PricingController][WARN] INVALID_DISTANCE: distance_km=${rawDistance} (<=0 or NaN). request_id=${requestId}`
+        );
+        return res.status(400).json({
+          error: 'INVALID_DISTANCE',
+          message: `Distance must be between 0 and ${MAX_DISTANCE_KM} km`,
+        });
+      }
+
+      if (distance_km > MAX_DISTANCE_KM) {
+        console.warn(
+          `[PricingController][WARN] OUTLIER_DISTANCE: distance_km=${distance_km} exceeds MAX=${MAX_DISTANCE_KM} km. request_id=${requestId}`
+        );
+        return res.status(400).json({
+          error: 'INVALID_DISTANCE',
+          message: `Distance must be between 0 and ${MAX_DISTANCE_KM} km`,
+        });
+      }
+
       const data = {
         zoneId: req.query.zoneId || req.body.zoneId,
-        distance_km: parseFloat(req.query.distance_km || req.body.distance_km),
+        distance_km,
         duration_min: parseFloat(req.query.duration_min || req.body.duration_min) || 0,
         vehicle_type: req.query.vehicle_type || req.body.vehicle_type,
         // demand_index / supply_index: preserve 0 as valid value, undefined means "not provided"

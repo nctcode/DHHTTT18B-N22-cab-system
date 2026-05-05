@@ -30,6 +30,35 @@ router.get(
 );
 
 /**
+ * POST /drivers/internal/offline/:userId
+ * Internal endpoint called by Auth Service on logout to set driver offline.
+ * No gateway auth required — only reachable within Docker network.
+ */
+router.post(
+  '/internal/offline/:userId',
+  async (req, res) => {
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+      const result = await prisma.driver.updateMany({
+        where: { user_id: req.params.userId },
+        data: { is_available: false },
+      });
+      await prisma.$disconnect();
+      res.json({
+        success: true,
+        message: result.count > 0
+          ? `Driver for user ${req.params.userId} set OFFLINE`
+          : `No driver profile found for user ${req.params.userId}`,
+        updated: result.count,
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err.message });
+    }
+  }
+);
+
+/**
  * GET /drivers/internal/profile/:userId
  * Internal endpoint to get driver by user_id
  */

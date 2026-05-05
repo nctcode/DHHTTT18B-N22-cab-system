@@ -14,6 +14,9 @@ import Button from '../components/Button';
 // Average speeds for ETA estimation (km/h)
 const AVG_SPEED = { BIKE: 35, ECONOMY: 25, PREMIUM: 30, SUV: 22 };
 
+// Shared config: must match backend MAX_DISTANCE ENV (pricing-service)
+const MAX_DISTANCE_KM = parseFloat(import.meta.env.VITE_MAX_DISTANCE_KM) || 50;
+
 export default function RideOptions() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -27,6 +30,7 @@ export default function RideOptions() {
     const [loading, setLoading] = useState(true);
     const [booking, setBooking] = useState(false);
     const [error, setError] = useState(null);
+    const [distanceError, setDistanceError] = useState(null); // frontend distance validation error
     const [paymentMethod, setPaymentMethod] = useState('CASH');
 
     // Calculate distance + duration from coordinates
@@ -108,6 +112,21 @@ export default function RideOptions() {
     }, [routeInfo, pickupLocation, destinationLocation]);
 
     const fetchAllOptions = async () => {
+        // ── FRONTEND FAIL-FAST: Validate distance before calling any API ──
+        const d = routeInfo?.distance_km;
+        setDistanceError(null);
+
+        if (!d || d <= 0) {
+            setDistanceError('Quãng đường không hợp lệ');
+            setLoading(false);
+            return;
+        }
+        if (d > MAX_DISTANCE_KM) {
+            setDistanceError(`Quãng đường quá xa. Vui lòng chọn chuyến đi hợp lệ (<${MAX_DISTANCE_KM}km)`);
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -169,9 +188,17 @@ export default function RideOptions() {
             const first = enriched.find((o) => !o.error);
             if (first) setSelectedType(first.vehicleType);
         } catch (err) {
-            console.error('Failed to fetch ride options:', err);
-            setError('Không thể tải các lựa chọn xe. Vui lòng thử lại.');
-            toast.error('Tải lựa chọn xe thất bại');
+            // Handle backend INVALID_DISTANCE error
+            const backendError = err.response?.data?.error;
+            if (backendError === 'INVALID_DISTANCE') {
+                const msg = err.response?.data?.message || `Quãng đường không hợp lệ (<${MAX_DISTANCE_KM}km)`;
+                setDistanceError(msg);
+                toast.error(msg);
+            } else {
+                console.error('Failed to fetch ride options:', err);
+                setError('Không thể tải các lựa chọn xe. Vui lòng thử lại.');
+                toast.error('Tải lựa chọn xe thất bại');
+            }
         } finally {
             setLoading(false);
         }
@@ -188,6 +215,17 @@ export default function RideOptions() {
         if (!user) {
             toast.error('Vui lòng đăng nhập để đặt xe');
             navigate('/login');
+            return;
+        }
+
+        // Frontend validation: block if distance is out of range
+        const d = routeInfo?.distance_km;
+        if (!d || d <= 0) {
+            toast.error('Quãng đường không hợp lệ');
+            return;
+        }
+        if (d > MAX_DISTANCE_KM) {
+            toast.error(`Quãng đường quá xa. Vui lòng chọn chuyến đi hợp lệ (<${MAX_DISTANCE_KM}km)`);
             return;
         }
 
@@ -228,10 +266,10 @@ export default function RideOptions() {
             const result = await bookingService.createBooking(bookingData);
             toast.success('Đặt xe thành công!');
             const newBookingId = result.data?._id || result.data?.id || result.booking?.id;
-            
+
             localStorage.setItem('activeRideId', newBookingId);
             await fetchRide(newBookingId);
-            
+
             navigate('/searching', {
                 state: {
                     bookingId: newBookingId,
@@ -241,7 +279,15 @@ export default function RideOptions() {
                 }
             });
         } catch (err) {
-            toast.error(err.response?.data?.message || 'Đặt xe thất bại. Vui lòng thử lại.');
+            // Handle backend INVALID_DISTANCE response explicitly
+            const backendError = err.response?.data?.error;
+            if (backendError === 'INVALID_DISTANCE') {
+                const msg = err.response?.data?.message || `Quãng đường không hợp lệ (<${MAX_DISTANCE_KM}km)`;
+                toast.error(msg);
+                setDistanceError(msg);
+            } else {
+                toast.error(err.response?.data?.message || 'Đặt xe thất bại. Vui lòng thử lại.');
+            }
         } finally {
             setBooking(false);
         }
@@ -325,10 +371,10 @@ export default function RideOptions() {
                 )}
 
                 {/* Error */}
-                {error && !loading && (
+                {(error || distanceError) && !loading && (
                     <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-center">
                         <p className="text-4xl mb-3">⚠️</p>
-                        <p className="text-red-600 font-medium mb-2">{error}</p>
+                        <p className="text-red-600 font-medium mb-2">{distanceError || error}</p>
                         <button onClick={() => navigate(-1)}
                             className="text-sm text-primary font-medium hover:underline">
                             ← Quay lại
@@ -398,14 +444,19 @@ export default function RideOptions() {
 
                         {/* Confirm */}
                         <div className="mt-4">
+                            {distanceError && (
+                                <div className="mb-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center gap-2">
+                                    <span>❌</span> {distanceError}
+                                </div>
+                            )}
                             <Button
                                 variant="primary"
                                 onClick={handleBookRide}
                                 loading={booking}
-                                disabled={!selectedOption}
+                                disabled={!selectedOption || !!distanceError}
                                 className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-blue-500/25"
                             >
-                                Xác nhận {selectedOption?.vehicleType || ''} •{' '}
+                                Xác nhận {selectedOption?.vehicleType || ''} &bull;{' '}
                                 {selectedOption?.isFallback || selectedOption?.totalFare == null
                                     ? 'Giá cập nhật sau'
                                     : `${selectedOption?.totalFare?.toLocaleString('vi-VN')} ₫`

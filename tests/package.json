@@ -10,6 +10,7 @@
     "test:level4": "jest level_4_adaptive --verbose --forceExit --detectOpenHandles",
     "test:tx-rollback": "node test_booking_tx_rollback_after_insert.js",
     "test:payment-rollback": "node test_payment_failure_rollback.js",
+    "test:ai-latency": "node benchmark_ai_latency.js",
     "test:ci": "jest --ci --verbose --forceExit --detectOpenHandles"
   },
   "dependencies": {

@@ -98,6 +98,70 @@ paths:
                     items:
                       $ref: '#/components/schemas/Driver'
 
+  /api/drivers/nearby:
+    get:
+      tags:
+        - Drivers
+      summary: Get nearby available drivers sorted by distance
+      description: |
+        Trả về danh sách tài xế online theo thứ tự `distance_km` tăng dần (gần nhất trước),
+        sau đó phụ theo `rating_avg` giảm dần.
+
+        > Lưu ý: Driver chỉ xuất hiện nếu `is_available = true` và vừa cập nhật vị trí gần đây.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 10.7765
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+            format: double
+          example: 106.7009
+        - in: query
+          name: radius
+          required: false
+          schema:
+            type: number
+            default: 10
+          description: Bán kính tìm kiếm (km)
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Số lượng tài xế tối đa
+      responses:
+        '200':
+          description: Nearby drivers sorted by distance asc
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Driver'
+                        - type: object
+                          properties:
+                            distance_km:
+                              type: number
+                              format: float
+                              example: 2.04
+
   /api/drivers/{id}:
     get:
       tags:
@@ -209,16 +273,31 @@ paths:
     patch:
       tags:
         - Drivers
-      summary: Update driver location
+      summary: Update driver GPS location
+      description: |
+        Cập nhật vị trí GPS hiện tại của tài xế. Dùng để:
+        - **Test Case 51** – Giả lập 3 tài xế ở vị trí khác nhau để kiểm tra AI chọn tài xế gần nhất.
+        - **Realtime tracking** – Driver app gọi định kỳ để cập nhật vị trí.
+
+        > **Lưu ý:** Sau khi cập nhật, `updated_at` sẽ được refresh. Endpoint `/api/drivers/nearby` chỉ trả về driver có `updated_at` trong vòng 1 phút gần đây.
+
+        ### Toạ độ mẫu cho Test Case 51 (Passenger tại: 10.8221, 106.6868)
+        | Driver | Khoảng cách | current_lat | current_lng |
+        |--------|------------|-------------|-------------|
+        | D1 | ~5 km | 10.8672 | 106.6868 |
+        | D2 | ~2 km | 10.8401 | 106.6868 |
+        | D3 | ~3 km | 10.8491 | 106.6868 |
       security:
         - BearerAuth: []
       parameters:
         - in: path
           name: id
           required: true
+          description: Driver UUID (lấy từ GET /api/drivers hoặc GET /api/drivers/profile/me)
           schema:
             type: string
             format: uuid
+            example: "dae07fab-930e-46e7-ae1d-826dd07545fb"
       requestBody:
         required: true
         content:
@@ -232,16 +311,93 @@ paths:
                 current_lat:
                   type: number
                   format: double
+                  description: Vĩ độ (latitude), từ -90 đến 90
+                  example: 10.840129
                 current_lng:
                   type: number
                   format: double
+                  description: Kinh độ (longitude), từ -180 đến 180
+                  example: 106.686780
+            examples:
+              D2_2km_away:
+                summary: "D2 – Cách Passenger 2km (Test Case 51)"
+                value:
+                  current_lat: 10.840129
+                  current_lng: 106.686780
+              D1_5km_away:
+                summary: "D1 – Cách Passenger 5km (Test Case 51)"
+                value:
+                  current_lat: 10.867156
+                  current_lng: 106.686780
+              D3_3km_away:
+                summary: "D3 – Cách Passenger 3km (Test Case 51)"
+                value:
+                  current_lat: 10.849138
+                  current_lng: 106.686780
+              Passenger_Location:
+                summary: "Vị trí Hành Khách"
+                value:
+                  current_lat: 10.822111
+                  current_lng: 106.686780
       responses:
         '200':
-          description: Location updated successfully
+          description: Vị trí cập nhật thành công
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DriverResponse'
+              example:
+                success: true
+                message: "Driver location updated"
+                data:
+                  id: "dae07fab-930e-46e7-ae1d-826dd07545fb"
+                  vehicle_plate: "TEST-3227"
+                  current_lat: 10.780640
+                  current_lng: 106.660172
+                  is_available: true
+                  updated_at: "2026-05-02T16:20:00.000Z"
+        '400':
+          description: Thiếu hoặc sai tọa độ
+        '401':
+          description: Không có JWT hoặc JWT hết hạn
+        '403':
+          description: Không phải tài xế này hoặc không phải Admin
+        '404':
+          description: Driver ID không tồn tại
+
+  /api/drivers/profile/me:
+    get:
+      tags:
+        - Drivers
+      summary: Lấy thông tin driver profile của tài xế đang đăng nhập
+      description: |
+        Trả về ID và thông tin đầy đủ của tài xế dựa vào JWT token.
+
+        > **Dùng cho Test Case 51:** Đăng nhập từng tài khoản driver → gọi endpoint này để lấy `driver.id` → dùng ID đó gọi `PATCH /api/drivers/{id}/location` để set tọa độ giả lập.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Thông tin driver profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriverResponse'
+              example:
+                success: true
+                data:
+                  id: "dae07fab-930e-46e7-ae1d-826dd07545fb"
+                  user_id: "abc-123"
+                  vehicle_plate: "TEST-3227"
+                  vehicle_type: "CAR"
+                  current_lat: 10.780640
+                  current_lng: 106.660172
+                  is_available: true
+                  rating_avg: 4.8
+        '401':
+          description: Chưa đăng nhập
+        '404':
+          description: Tài khoản driver chưa tạo profile
 
 components:
   schemas:

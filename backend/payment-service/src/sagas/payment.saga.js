@@ -4,6 +4,7 @@ const eventBus = require('../events/eventBus');
 const { EVENTS } = require('../events/eventContracts');
 const { executeWithRetry } = require('../utils/retry');
 const { getAdapter } = require('../adapters/psp.adapter');
+const { evaluateFraudAssessment } = require('../services/fraudRule.service');
 
 class PaymentSaga {
   constructor() {
@@ -21,7 +22,7 @@ class PaymentSaga {
    * Step 1: RideFinished -> Create Payment (PENDING) -> Process Charge
    */
   async handleRideFinished(payload) {
-    const { rideId, bookingId, passengerId, amount, method, driverId } = payload;
+    const { rideId, bookingId, passengerId, amount, method, driverId, fraud_score, fraudScore } = payload;
     console.log(`[Saga] RideFinished received for ride ${rideId}`);
 
     // IDEMPOTENCY CHECK
@@ -35,6 +36,8 @@ class PaymentSaga {
       return;
     }
 
+    const fraudAssessment = evaluateFraudAssessment(fraudScore ?? fraud_score);
+
     try {
       // Create Payment PENDING
       const payment = await prisma.payment.create({
@@ -45,6 +48,8 @@ class PaymentSaga {
           amount: parseFloat(amount),
           payment_method: method,
           status: 'PENDING',
+          fraud_score: fraudAssessment.fraudScore,
+          flagged: fraudAssessment.flagged,
           saga_status: 'STARTED',
           retry_count: 0,
           idempotency_key: `${rideId}:${bookingId || 'no-booking'}`

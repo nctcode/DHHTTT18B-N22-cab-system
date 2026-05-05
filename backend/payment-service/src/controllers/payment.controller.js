@@ -10,16 +10,25 @@ const sendResponse = (res, statusCode, success, message, data = null) => {
 
 const handleError = (res, error) => {
   console.error(error);
-  if (error.message.includes('not found')) {
-    return sendResponse(res, 404, false, error.message);
+
+  const message = error?.message || 'Internal Server Error';
+  const normalized = message.toLowerCase();
+
+  if (error?.statusCode && Number.isInteger(error.statusCode)) {
+    return sendResponse(res, error.statusCode, false, message);
   }
-  if (error.message.includes('Forbidden') || error.message.includes('Unauthorized') || error.message.includes('cannot create')) {
-    return sendResponse(res, 403, false, error.message);
+
+  if (normalized.includes('not found')) {
+    return sendResponse(res, 404, false, message);
   }
-  if (error.message.includes('Missing') || error.message.includes('exists') || error.message.includes('Invalid transition')) {
-    return sendResponse(res, 400, false, error.message);
+  if (normalized.includes('forbidden') || normalized.includes('unauthorized') || normalized.includes('can only create payment for yourself') || normalized.includes('cannot create')) {
+    return sendResponse(res, 403, false, message);
   }
-  sendResponse(res, 500, false, error.message || 'Internal Server Error');
+  if (normalized.includes('missing') || normalized.includes('exists') || normalized.includes('invalid transition') || normalized.includes('invalid')) {
+    return sendResponse(res, 400, false, message);
+  }
+
+  return sendResponse(res, 500, false, message);
 };
 
 class PaymentController {
@@ -30,6 +39,8 @@ class PaymentController {
         passengerId: req.body.passenger_id || req.body.passengerId,
         amount: req.body.amount,
         method: req.body.payment_method || req.body.paymentMethod || req.body.method,
+        bookingId: req.body.booking_id || req.body.bookingId,
+        fraudScore: req.body.fraud_score ?? req.body.fraudScore,
       };
       
       const payment = await paymentService.createPayment(data, req.user);

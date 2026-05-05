@@ -25,6 +25,12 @@ const app = express();
 // Trust proxy
 app.set('trust proxy', 1);
 
+// Inject Gateway Secret for internal service verification
+app.use((req, res, next) => {
+  req.headers['x-gateway-secret'] = process.env.GATEWAY_SHARED_SECRET || 'cab-gateway-internal-secret';
+  next();
+});
+
 // 1. EARLY REQUEST ABORT HANDLER - Prevent "already handled" errors
 app.use((req, res, next) => {
   let isRequestAborted = false;

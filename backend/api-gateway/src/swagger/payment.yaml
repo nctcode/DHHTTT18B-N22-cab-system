@@ -214,9 +214,16 @@ components:
           type: number
           format: float
           example: 42000
+        fraud_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Fraud score input for rule evaluation (fraud_score > threshold => flagged=true).
+          example: 0.9
         method:
           type: string
-          enum: [CARD, CASH, WALLET, MOMO, VNPAY, CREDIT_CARD]
+          enum: [CASH, CARD]
           example: CARD
 
     PaymentData:
@@ -247,6 +254,14 @@ components:
           type: string
           enum: [PENDING, SUCCESS, FAILED, REFUNDED]
           example: FAILED
+        fraud_score:
+          type: number
+          description: "Chỉ số gian lận từ AI (0-1). Test case: > 0.8 là rủi ro cao."
+          example: 0.92
+        flagged:
+          type: boolean
+          description: "Fraud flag computed by service-layer rule: fraud_score > threshold."
+          example: true
         retry_count:
           type: integer
           example: 3

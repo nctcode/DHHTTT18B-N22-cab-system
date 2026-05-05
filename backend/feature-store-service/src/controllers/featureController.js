@@ -35,6 +35,18 @@ class FeatureController {
     }
   }
 
+  // GET /features/zone/:zoneId/history?limit=24
+  async getZoneDemandHistory(req, res) {
+    try {
+      const { zoneId } = req.params;
+      const { limit = 24 } = req.query;
+      const data = await featureService.getZoneDemandHistory(zoneId, limit);
+      send(res, 200, true, 'Zone demand history', data);
+    } catch (e) {
+      send(res, 500, false, e.message);
+    }
+  }
+
   // PUT /features/zone/:zoneId
   async updateZoneFeatures(req, res) {
     try {

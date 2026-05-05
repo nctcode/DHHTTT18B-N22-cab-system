@@ -1,5 +1,6 @@
 // src/controllers/refreshToken.controller.js
 const tokenService = require('../services/token.service');
+const DriverClient = require('../clients/driver.client');
 
 /**
  * Refresh access token using refresh token
@@ -108,15 +109,21 @@ exports.logout = async (req, res) => {
       }
     }
 
-    // 2. Blacklist the access token
+    // 2. Blacklist the access token + extract userId
+    let userId = null;
     if (accessToken) {
       const jwt = require('jsonwebtoken');
       const decoded = jwt.decode(accessToken);
       if (decoded && (decoded.userId || decoded.sub)) {
-        const userId = decoded.userId || decoded.sub;
+        userId = decoded.userId || decoded.sub;
         await tokenService.blacklistToken(accessToken, userId, 'access');
         console.log(`🚫 Access token blacklisted for user ${userId}`);
       }
+    }
+
+    // 3. Auto set driver OFFLINE (fire-and-forget, không block logout nếu lỗi)
+    if (userId) {
+      DriverClient.setOfflineByUserId(userId).catch(() => {}); // silent
     }
 
     return res.json({

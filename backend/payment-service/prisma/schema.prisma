@@ -8,19 +8,21 @@ datasource db {
 }
 
 model Payment {
-  id             String        @id @default(uuid())
-  ride_id        String
-  passenger_id   String
-  driver_id      String?
-  amount         Float
-  payment_method PaymentMethod
-  status         PaymentStatus @default(PENDING)
+  id              String        @id @default(uuid())
+  ride_id         String
+  passenger_id    String
+  driver_id       String?
+  amount          Float
+  payment_method  PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  fraud_score     Float         @default(0)
+  flagged         Boolean       @default(false)
   
   // Saga / Robustness fields
-  retry_count    Int           @default(0)
-  idempotency_key String?      @unique
-  saga_status    SagaStatus?
-  psp_reference  String?
+  retry_count     Int           @default(0)
+  idempotency_key String?       @unique
+  saga_status     SagaStatus?
+  psp_reference   String?
 
   created_at     DateTime      @default(now())
   updated_at     DateTime      @updatedAt

@@ -23,10 +23,29 @@ class MatchingService {
    * Fetches driver features from Feature Store, builds feature vectors,
    * then calls Model Serving for scoring.
    */
-  async findBestDriver(pickupLocation, availableDrivers, rideContext = {}) {
+  async findBestDriver(pickupLocation, availableDrivers, rideContext = {}, traceId = 'N/A') {
     if (!availableDrivers || availableDrivers.length === 0) {
       throw new Error('No available drivers provided');
     }
+
+    const logDecision = (decisionType, bestDriver, allCandidates, reason) => {
+      const decisionLog = {
+        timestamp: new Date().toISOString(),
+        event: 'AI_MATCHING_DECISION',
+        trace_id: traceId,
+        decision_type: decisionType,
+        selected_driver_id: bestDriver.driverId,
+        selected_score: bestDriver.score,
+        reason: reason,
+        candidates_evaluated: allCandidates.map(c => ({
+          driver_id: c.driverId,
+          score: c.score || c.distanceKm, // fallback uses distance
+          distance_km: c.distanceKm,
+          rating: c.rating,
+        }))
+      };
+      console.log(JSON.stringify(decisionLog));
+    };
 
     // 1. Fetch features for each driver from Feature Store
     const driverFeatures = await Promise.all(
@@ -64,6 +83,15 @@ class MatchingService {
       const ranked = resp.data?.data;
       if (ranked && ranked.length > 0) {
         const best = ranked[0];
+        
+        // Log the decision
+        logDecision(
+          'MODEL_PREDICTION', 
+          best, 
+          ranked, 
+          `Driver ${best.driverId} ranked highest by AI Model with score ${best.score.toFixed(4)}. Confidence: ${best.confidence}.`
+        );
+
         return {
           bestDriverId: best.driverId,
           score: best.score,
@@ -77,9 +105,19 @@ class MatchingService {
 
     // 3. Fallback: nearest driver
     driverFeatures.sort((a, b) => a.distanceKm - b.distanceKm);
+    const bestFallback = driverFeatures[0];
+    const fallbackScore = 1.0 - (bestFallback.distanceKm / 10);
+    
+    logDecision(
+      'FALLBACK_DISTANCE', 
+      { driverId: bestFallback.driverId, score: fallbackScore }, 
+      driverFeatures, 
+      `Driver ${bestFallback.driverId} chosen as fallback due to shortest distance (${bestFallback.distanceKm.toFixed(2)} km).`
+    );
+
     return {
-      bestDriverId: driverFeatures[0].driverId,
-      score: 1.0 - (driverFeatures[0].distanceKm / 10),
+      bestDriverId: bestFallback.driverId,
+      score: fallbackScore,
       confidence: 0.50,
       fallback: true,
     };

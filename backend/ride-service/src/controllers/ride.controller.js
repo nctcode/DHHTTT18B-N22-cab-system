@@ -599,12 +599,32 @@ exports.getETA = async (req, res) => {
       return sendResponse(res, 400, false, 'pickup and destination with lat/lng are required');
     }
 
-    const etaResp = await axios.post(`${AI_ETA_URL}/ai/eta/predict`, {
-      pickup,
-      destination,
-      timeOfDay,
-      dayOfWeek,
-    }, { timeout: 5000 });
+    let etaResp;
+    let attempt = 0;
+    const maxRetries = 3;
+    const baseDelayMs = 1000;
+
+    while (attempt < maxRetries) {
+      try {
+        etaResp = await axios.post(`${AI_ETA_URL}/ai/eta/predict`, {
+          pickup,
+          destination,
+          timeOfDay,
+          dayOfWeek,
+        }, { timeout: 5000 });
+        break; // Success, exit retry loop
+      } catch (error) {
+        attempt++;
+        const isNetworkOr5xxError = !error.response || error.response.status >= 500;
+        
+        if (isNetworkOr5xxError && attempt < maxRetries) {
+          console.warn(`[ETA Service] Attempt ${attempt} failed (${error.code || error.message}). Retrying in ${baseDelayMs * attempt}ms...`);
+          await new Promise(r => setTimeout(r, baseDelayMs * attempt));
+        } else {
+          throw error; // Throw to the outer catch block for fallback
+        }
+      }
+    }
 
     const prediction = etaResp.data?.data;
     sendResponse(res, 200, true, 'ETA prediction', prediction);
