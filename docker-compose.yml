@@ -117,7 +117,7 @@ services:
   mongodb:
     image: mongo:7
     container_name: cab-booking-mongodb
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017" ]
     ports:
       - "27017:27017"
     volumes:
@@ -209,6 +209,7 @@ services:
       - BOOKING_SERVICE_URL=http://booking-service:3004
       - RIDE_SERVICE_URL=http://ride-service:3005
       - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - PAYMENT_SERVICE_MTLS_URL=https://payment-service:3016
       - PRICING_SERVICE_URL=http://pricing-service:3007
       - NOTIFICATION_SERVICE_URL=http://notification-service:3008
       - REVIEW_SERVICE_URL=http://review-service:3009
@@ -219,6 +220,8 @@ services:
       - MODEL_SERVING_URL=http://model-serving-service:4010
       - ML_TRAINING_URL=http://ml-training-service:4030
       - ROUTING_SERVICE_URL=http://routing-service:4040
+    volumes:
+      - ./backend/api-gateway/certs:/app/certs:ro
     depends_on:
       redis:
         condition: service_healthy
@@ -362,6 +365,12 @@ services:
     container_name: cab-booking-payment-service
     env_file:
       - ./backend/payment-service/.env
+    environment:
+      - MTLS_PORT=3016
+    ports:
+      - "3016:3016"
+    volumes:
+      - ./backend/payment-service/certs:/app/certs:ro
     depends_on:
       - postgres-payment
     networks:

@@ -37,21 +37,24 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// 5. Routes
+// 5. Health check - MUST be before wildcard 404
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', service: 'Payment Service' });
+});
+app.get('/payments/health', (req, res) => {
+  res.json({ status: 'OK', service: 'Payment Service' });
+});
+
+// 6. Routes
 app.use('/payments', paymentRoutes);
 
-// 6. 404 Handler
+// 7. 404 Handler
 app.use('*', (req, res) => {
   res.status(404).json({
     status: 'error',
     message: 'Route not found',
     path: req.originalUrl
   });
-});
-
-// 7. Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', service: 'Payment Service' });
 });
 
 // 8. Global Error Handler - MUST BE LAST
